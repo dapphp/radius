@@ -25,161 +25,49 @@
  *   SysCo (tm) is a trademark of SysCo systemes de communication sa
  *   (http://www.sysco.ch/)
  *   All rights reserved.
- * 
+ *
+ *   Copyright (c) 2016, Drew Phillips
+ *   (https://drew-phillips.com)
+ *
  *   This file is part of the Pure PHP radius class
  *
  *   Pure PHP radius class is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU Lesser General Public License as
  *   published by the Free Software Foundation, either version 3 of the License,
  *   or (at your option) any later version.
- * 
+ *
  *   Pure PHP radius class is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU Lesser General Public License for more details.
- * 
+ *
  *   You should have received a copy of the GNU Lesser General Public
  *   License along with Pure PHP radius class.
  *   If not, see <http://www.gnu.org/licenses/>.
  *
  *
  * @author: SysCo/al
+ * @author: Drew Phillips <drew@drew-phillips.com>
  * @since CreationDate: 2008-01-04
  * @copyright (c) 2008 by SysCo systemes de communication sa
- * @version $LastChangedRevision: 1.2.2 $
- * @version $LastChangedDate: 2009-01-05 $
- * @version $LastChangedBy: SysCo/al $
- * @link $HeadURL: radius.class.php $
+ * @copyright (c) 2016 by Drew Phillips
+ * @version 2.0.0
  * @link http://developer.sysco.ch/php/
  * @link developer@sysco.ch
- * Language: PHP 4.0.7 or higher
- *
- *
- * Usage
- *
- *   require_once('radius.class.php');
- *   $radius = new Radius($ip_radius_server = 'radius_server_ip_address', $shared_secret = 'radius_shared_secret'[, $radius_suffix = 'optional_radius_suffix'[, $udp_timeout = udp_timeout_in_seconds[, $authentication_port = 1812]]]);
- *   $result = $radius->Access_Request($username = 'username', $password = 'password'[, $udp_timeout = udp_timeout_in_seconds]);
- *
- *
- * Examples
- *
- *   Example 1
- *     <?php
- *         require_once('radius.class.php');
- *         $radius = new Radius('127.0.0.1', 'secret');
- *         $radius->SetNasIpAddress('1.2.3.4'); // Needed for some devices, and not auto_detected if PHP not runned through a web server
- *         if ($radius->AccessRequest('user', 'pass'))
- *         {
- *             echo "Authentication accepted.";
- *         }
- *         else
- *         {
- *             echo "Authentication rejected.";
- *         }
- *     ?>
- *
- *   Example 2
- *     <?php
- *         require_once('radius.class.php');
- *         $radius = new Radius('127.0.0.1', 'secret');
- *         $radius->SetNasPort(0);
- *         $radius->SetNasIpAddress('1.2.3.4'); // Needed for some devices, and not auto_detected if PHP not runned through a web server
- *         if ($radius->AccessRequest('user', 'pass'))
- *         {
- *             echo "Authentication accepted.";
- *             echo "<br />";
- *         }
- *         else
- *         {
- *             echo "Authentication rejected.";
- *             echo "<br />";
- *         }
- *         echo $radius->GetReadableReceivedAttributes();
- *     ?>
- *
- *
- * External file needed
- *
- *   none.
- *
- *
- * External file created
- *
- *   none.
- *
- *
- * Special issues
- *
- *   - Sockets support must be enabled.
- *     * In Linux and *nix environments, the extension is enabled at
- *       compile time using the --enable-sockets configure option
- *     * In Windows, PHP Sockets can be activated by un-commenting
- *       extension=php_sockets.dll in php.ini
- *
- *
- * Other related ressources
- *
- *   FreeRADIUS, a free Radius server implementation for Linux and *nix environments:
- *     http://www.freeradius.org/
- *
- *   WinRadius, Windows Radius server (free for 5 users):
- *     http://www.itconsult2000.com/en/product/WinRadius.zip
- *
- *   Radl, a free Radius server for Windows:
- *     http://www.loriotpro.com/Products/RadiusServer/FreeRadiusServer_EN.php
- *
- *   DOS command line Radius client:
- *     http://www.itconsult2000.com/en/product/WinRadiusClient.zip
- *
- *
- * Users feedbacks and comments
- *
- * 2008-07-02 Pim Koeman/Parantion
- *
- *   When using a radius connection behind a linux iptables firewall
- * 	 allow port 1812 and 1813 with udp protocol
- *
- *   IPTABLES EXAMPLE (command line):
- *   iptables -A AlwaysACCEPT -p udp --dport 1812 -j ACCEPT
- *   iptables -A AlwaysACCEPT -p udp --dport 1813 -j ACCEPT
- *
- *   or put the lines in /etc/sysconfig/iptables (red-hat type systems (fedora, centos, rhel etc.)
- *   -A AlwaysACCEPT -p udp --dport 1812 -j ACCEPT
- *   -A AlwaysACCEPT -p udp --dport 1813 -j ACCEPT
- *
- *
- * Change Log
- *
- *   2009-01-05 1.2.2 SysCo/al Added Robert Svensson feedback, Mideye RADIUS server is supported
- *   2008-11-11 1.2.1 SysCo/al Added Carlo Ferrari resolution in examples (add NAS IP Address for a VASCO Middleware server)
- *   2008-07-07 1.2   SysCo/al Added Pim Koeman (Parantion) contribution
- *                              - comments concerning using radius behind a linux iptables firewall
- *                             Added Jon Bright (tick Trading Software AG) contribution
- *                              - false octal encoding with 0xx indexes (indexes are now rewritten in xx only)
- *                              - challenge/response support for the RSA SecurID New-PIN mode
- *                             Added GetRadiusPacketInfo() method
- *                             Added GetAttributesInfo() method
- *                             Added DecodeVendorSpecificContent() (to answer Raul Carvalho's question)
- *                             Added Decoded Vendor Specific Content in debug messages
- *   2008-02-04 1.1   SysCo/al Typo error for the udp_timeout parameter (line 256 in the version 1.0)
- *   2008-01-07 1.0   SysCo/al Initial release
- *
- *********************************************************************/
+ * @link https://github.com/dapphp/radius
+ * @link drew@drew-phillips.com
+ */
 
+namespace Dapphp\Radius;
 
-/*********************************************************************
+/**
+ * A pure PHP RADIUS client implementation.
  *
- * Radius
- * Pure PHP radius class
+ * Originally created by SysCo/al based on radius.class.php v1.2.2
+ * Modified for PHP5 & PHP7 compatibility by Drew Phillips
+ * Switched from using ext/sockets to streams.
  *
- * Creation 2008-01-04
- * Update 2009-01-05
- * @package radius
- * @version v.1.2.2
- * @author SysCo/al
- *
- *********************************************************************/
+ */
 class Radius
 {
     var $_ip_radius_server;       // Radius server IP address
@@ -208,7 +96,7 @@ class Radius
     var $_radius_packet_info;     // Radius packet codes info array
     var $_last_error_code;        // Last error code
     var $_last_error_message;     // Last error message
-    
+
 
     /*********************************************************************
      *
@@ -238,7 +126,7 @@ class Radius
         $this->_radius_packet_info[12] = 'Status-Server (experimental)';
         $this->_radius_packet_info[13] = 'Status-Client (experimental)';
         $this->_radius_packet_info[255] = 'Reserved';
-        
+
         $this->_attributes_info[1] = array('User-Name', 'S');
         $this->_attributes_info[2] = array('User-Password', 'S');
         $this->_attributes_info[3] = array('CHAP-Password', 'S'); // Type (1) / Length (1) / CHAP Ident (1) / String
@@ -286,7 +174,7 @@ class Radius
 
         $this->_identifier_to_send = 0;
         $this->_user_ip_address = (isset($_SERVER['REMOTE_ADDR'])?$_SERVER['REMOTE_ADDR']:'0.0.0.0');
-        
+
         $this->GenerateRequestAuthenticator();
         $this->SetIpRadiusServer($ip_radius_server);
         $this->SetSharedSecret($shared_secret);
@@ -298,7 +186,7 @@ class Radius
         $this->SetPassword();
         $this->SetNasIpAddress();
         $this->SetNasPort();
-        
+
         $this->ClearLastError();
         $this->ClearDataToSend();
         $this->ClearDataReceived();
@@ -310,7 +198,7 @@ class Radius
         $this->_identifier_to_send = (($this->_identifier_to_send + 1) % 256);
         return $this->_identifier_to_send;
     }
-    
+
 
     function GenerateRequestAuthenticator()
     {
@@ -339,52 +227,52 @@ class Radius
             return '';
         }
     }
-    
-    
+
+
     function ClearDataToSend()
     {
         $this->_radius_packet_to_send = 0;
         $this->_attributes_to_send = NULL;
     }
-    
-    
+
+
     function ClearDataReceived()
     {
         $this->_radius_packet_received = 0;
         $this->_attributes_received = NULL;
     }
-    
+
 
     function SetPacketCodeToSend($packet_code)
     {
         $this->_radius_packet_to_send = $packet_code;
     }
-    
-    
+
+
     function SetDebugMode($debug_mode)
     {
         $this->_debug_mode = (TRUE === $debug_mode);
     }
-    
-    
+
+
     function SetIpRadiusServer($ip_radius_server)
     {
         $this->_ip_radius_server = gethostbyname($ip_radius_server);
     }
-    
-    
+
+
     function SetSharedSecret($shared_secret)
     {
         $this->_shared_secret = $shared_secret;
     }
-    
-    
+
+
     function SetRadiusSuffix($radius_suffix)
     {
         $this->_radius_suffix = $radius_suffix;
     }
-    
-    
+
+
     function SetUsername($username = '')
     {
         $temp_username = $username;
@@ -392,29 +280,29 @@ class Radius
         {
             $temp_username .= $this->_radius_suffix;
         }
-        
+
         $this->_username = $temp_username;
         $this->SetAttribute(1, $this->_username);
     }
-    
-    
+
+
     function SetPassword($password = '')
     {
         $this->_password = $password;
         $encrypted_password = '';
         $padded_password = $password;
-        
+
         if (0 != (strlen($password)%16))
         {
             $padded_password .= str_repeat(chr(0),(16-strlen($password)%16));
         }
-        
+
         $previous_result = $this->_request_authenticator;
-        
+
         for ($full_loop = 0; $full_loop < (strlen($padded_password)/16); $full_loop++)
         {
             $xor_value = md5($this->_shared_secret.$previous_result);
-            
+
             $previous_result = '';
             for ($xor_loop = 0; $xor_loop <= 15; $xor_loop++)
             {
@@ -425,7 +313,7 @@ class Radius
             }
             $encrypted_password .= $previous_result;
         }
-        
+
         $this->_encrypted_password = $encrypted_password;
         $this->SetAttribute(2, $this->_encrypted_password);
     }
@@ -443,15 +331,15 @@ class Radius
         }
         $this->SetAttribute(4, $this->_nas_ip_address);
     }
-    
-    
+
+
     function SetNasPort($nas_port = 0)
     {
         $this->_nas_port = intval($nas_port);
         $this->SetAttribute(5, $this->_nas_port);
     }
-    
-    
+
+
     function SetUdpTimeout($udp_timeout = 5)
     {
         if (intval($udp_timeout) > 0)
@@ -459,15 +347,15 @@ class Radius
             $this->_udp_timeout = intval($udp_timeout);
         }
     }
-    
-    
+
+
     function ClearLastError()
     {
         $this->_last_error_code    = 0;
         $this->_last_error_message = '';
     }
-    
-    
+
+
     function SetAuthenticationPort($authentication_port)
     {
         if ((intval($authentication_port) > 0) && (intval($authentication_port) < 65536))
@@ -475,8 +363,8 @@ class Radius
             $this->_authentication_port = intval($authentication_port);
         }
     }
-    
-    
+
+
     function SetAccountingPort($accounting_port)
     {
         if ((intval($accounting_port) > 0) && (intval($accounting_port) < 65536))
@@ -484,8 +372,8 @@ class Radius
             $this->_accounting_port = intval($accounting_port);
         }
     }
-    
-    
+
+
     function GetReceivedPacket()
     {
         return $this->_radius_packet_received;
@@ -496,7 +384,7 @@ class Radius
     {
         return $this->_attributes_received;
     }
-    
+
 
     function GetReadableReceivedAttributes()
     {
@@ -524,7 +412,7 @@ class Radius
         }
         return $readable_attributes;
     }
-    
+
 
     function GetAttribute($attribute_type)
     {
@@ -577,8 +465,8 @@ class Radius
             flush();
         }
     }
-    
-    
+
+
     function SetAttribute($type, $value)
     {
         $attribute_index = -1;
@@ -592,7 +480,7 @@ class Radius
         }
 
         $temp_attribute = NULL;
-        
+
         if (isset($this->_attributes_info[$type]))
         {
             switch ($this->_attributes_info[$type][1])
@@ -617,7 +505,7 @@ class Radius
                     $temp_attribute = NULL;
             }
         }
-                    
+
         if ($attribute_index > -1)
         {
             $this->_attributes_to_send[$attribute_index] = $temp_attribute;
@@ -636,7 +524,7 @@ class Radius
     function DecodeAttribute($attribute_raw_value, $attribute_format)
     {
         $attribute_value = NULL;
-        
+
         if (isset($this->_attributes_info[$attribute_format]))
         {
             switch ($this->_attributes_info[$attribute_format][1])
@@ -681,7 +569,7 @@ class Radius
             $result[] = array($vendor_id, $vendor_type, $attribute_specific);
             $offset_in_raw += ($vendor_length);
         }
-        
+
         return $result;
     }
 
@@ -695,14 +583,14 @@ class Radius
     {
         $this->ClearDataReceived();
         $this->ClearLastError();
-        
+
         $this->SetPacketCodeToSend(1); // Access-Request
-        
+
         if (0 < strlen($username))
         {
             $this->SetUsername($username);
         }
-        
+
         if (0 < strlen($password))
         {
             $this->SetPassword($password);
@@ -731,7 +619,7 @@ class Radius
         $packet_length  = 4; // Radius packet code + Identifier + Length high + Length low
         $packet_length += strlen($this->_request_authenticator); // Request-Authenticator
         $packet_length += strlen($attributes_content); // Attributes
-        
+
         $packet_data  = chr($this->_radius_packet_to_send);
         $packet_data .= chr($this->GetNextIdentifier());
         $packet_data .= chr(intval($packet_length/256));
@@ -740,7 +628,7 @@ class Radius
         $packet_data .= $attributes_content;
 
         $_socket_to_server = socket_create(AF_INET, SOCK_DGRAM, 17); // UDP packet = 17
-        
+
         if ($_socket_to_server === FALSE)
         {
             $this->_last_error_code    = socket_last_error();
@@ -797,9 +685,9 @@ class Radius
         }
 
         $this->_radius_packet_received = intval(ord(substr($received_packet, 0, 1)));
-        
+
         $this->DebugInfo('<b>Packet type '.$this->_radius_packet_received.' ('.$this->GetRadiusPacketInfo($this->_radius_packet_received).')'.' received</b>');
-        
+
         if ($this->_radius_packet_received > 0)
         {
             $this->_identifier_received = intval(ord(substr($received_packet, 1, 1)));
@@ -832,7 +720,7 @@ class Radius
                 $this->_attributes_received[] = array($attribute_type, $attribute_value);
             }
         }
-        
+
         return (2 == ($this->_radius_packet_received));
     }
 }
