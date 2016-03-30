@@ -404,7 +404,7 @@ class Radius
         if (isset($this->attributesInfo[intval($info_index)])) {
             return $this->attributesInfo[intval($info_index)];
         } else {
-            return [ '', '' ];
+            return array('', '');
         }
     }
 
@@ -462,11 +462,13 @@ class Radius
 
         $info = $this->getAttributesInfo($type);
         $this->debugInfo("{$action} Attribute {$type} ({$info[0]}), format {$info[1]}, value <em>{$value}</em>");
+
+        return $this;
     }
 
     public function decodeVendorSpecificContent($rawValue)
     {
-        $result   = [];
+        $result   = array();
         $offset   = 0;
         $vendorId = (ord(substr($rawValue, 0, 1)) * 256 * 256 * 256) +
                     (ord(substr($rawValue, 1, 1)) * 256 * 256) +
@@ -539,7 +541,7 @@ class Radius
             $this->errorCode    = socket_last_error();
             $this->errorMessage = socket_strerror($this->errorCode);
         } else {
-            $this->debugInfo('<b>Packet type '.$this->radiusPacket.' ('.$this->getRadiusPacGetInfo($this->radiusPacket).')'.' sent</b>');
+            $this->debugInfo('<b>Packet type '.$this->radiusPacket.' ('.$this->getRadiusPacketInfo($this->radiusPacket).')'.' sent</b>');
             if ($this->debug) {
                 $readable_attributes = '';
                 foreach($this->attributesToSend as $one_attribute_to_send) {
