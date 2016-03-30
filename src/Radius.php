@@ -70,6 +70,25 @@ namespace Dapphp\Radius;
  */
 class Radius
 {
+    /** @var int Access-Request packet type identifier */
+    const TYPE_ACCESS_REQUEST      = 1;
+
+    /** @var int Access-Accept packet type identifier */
+    const TYPE_ACCESS_ACCEPT       = 2;
+
+    /** @var int Access-Reject packet type identifier */
+    const TYPE_ACCESS_REJECT       = 3;
+
+    /** @var int Accounting-Request packet type identifier */
+    const TYPE_ACCOUNTING_REQUEST  = 4;
+
+    /** @var int Accounting-Response packet type identifier */
+    const TYPE_ACCOUNTING_RESPONSE = 5;
+
+    /** @var int Access-Challenge packet type identifier */
+    const TYPE_ACCESS_CHALLENGE    = 11;
+    const TYPE_RESERVED            = 255;
+
     protected $server;                // Radius server IP address
     protected $secret;                // Shared secret with the radius server
     protected $suffix;                // Radius suffix (default is '');
@@ -320,6 +339,11 @@ class Radius
         return $this;
     }
 
+    public function getTimeout()
+    {
+        return $this->timeout;
+    }
+
     public function setAuthenticationPort($port)
     {
         if ((intval($port) > 0) && (intval($port) < 65536)) {
@@ -500,10 +524,10 @@ class Radius
 
     public function accessRequest($username = '', $password = '', $timeout = 0, $state = null)
     {
-        $this->clearDataReceived();
-        $this->clearError();
-
-        $this->setPacketCodeToSend(1); // Access-Request
+        $this->clearDataToSend()
+             ->clearDataReceived()
+             ->clearError()
+             ->setPacketType(self::TYPE_ACCESS_REQUEST);
 
         if (0 < strlen($username)) {
             $this->setUsername($username);
@@ -528,66 +552,74 @@ class Radius
             $attrContent .= $this->attributesToSend[$i];
         }
 
-        $packet_length  = 4; // Radius packet code + Identifier + Length high + Length low
-        $packet_length += strlen($this->getRequestAuthenticator()); // Request-Authenticator
-        $packet_length += strlen($attrContent); // Attributes
+        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
+        $packetLen += strlen($this->getRequestAuthenticator()); // Request-Authenticator
+        $packetLen += strlen($attrContent); // Attributes
 
-        $packet_data  = chr($this->radiusPacket);
-        $packet_data .= chr($this->getNextIdentifier());
-        $packet_data .= chr(intval($packet_length/256));
-        $packet_data .= chr(intval($packet_length%256));
-        $packet_data .= $this->getRequestAuthenticator();
-        $packet_data .= $attrContent;
+        $packetData  = chr($this->radiusPacket);
+        $packetData .= chr($this->getNextIdentifier());
+        $packetData .= chr(intval($packetLen / 256));
+        $packetData .= chr(intval($packetLen % 256));
+        $packetData .= $this->getRequestAuthenticator();
+        $packetData .= $attrContent;
 
-        $sock = socket_create(AF_INET, SOCK_DGRAM, 17); // UDP packet = 17
 
-        if ($sock === false) {
-            $this->errorCode    = socket_last_error();
-            $this->errorMessage = socket_strerror($this->errorCode);
-        } elseif (false === socket_connect($sock, $this->server, $this->authenticationPort)) {
-            $this->errorCode    = socket_last_error();
-            $this->errorMessage = socket_strerror($this->errorCode);
-        } elseif (false === socket_write($sock, $packet_data, $packet_length)) {
-            $this->errorCode    = socket_last_error();
-            $this->errorMessage = socket_strerror($this->errorCode);
-        } else {
-            $this->debugInfo(sprintf('<b>Packet type %d (%s) sent</b>', $this->radiusPacket, $this->getRadiusPacketInfo($this->radiusPacket)));
-            if ($this->debug) {
-                $readable_attributes = '';
-                foreach($this->attributesToSend as $attr) {
-                    $attr = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
-                    $this->debugInfo(
-                        sprintf(
-                            'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
-                            ord(substr($attr, 0, 1)),
-                            ord(substr($attr, 1, 1)) - 2,
-                            $attr[1],
-                            $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
-                         )
-                    );
-                }
-            }
+        $conn = @fsockopen('udp://' . $this->server, $this->authenticationPort, $errno, $errstr);
+        if (!$conn) {
+            $this->errorCode    = $errno;
+            $this->errorMessage = $errstr;
+            return false;
+        }
 
-            $read_socket_array   = array($sock);
-            $write_socket_array  = null;
-            $except_socket_array = null;
+        $sent = fwrite($conn, $packetData);
+        if (!$sent || $packetLen != $sent) {
+            $this->errorCode    = 0;
+            $this->errorMessage = 'Failed to send UDP packet';
+            return false;
+        }
 
-            $receivedPacket = chr(0);
-
-            if (!(false === socket_select($read_socket_array, $write_socket_array, $except_socket_array, $this->timeout))) {
-                if (in_array($sock, $read_socket_array)) {
-                    if (false === ($receivedPacket = @socket_read($sock, 1024))) { // @ used, than no error is displayed if the connection is closed by the remote host
-                        $receivedPacket     = chr(0);
-                        $this->errorCode    = socket_last_error();
-                        $this->errorMessage = socket_strerror($this->errorCode);
-                    } else {
-                        socket_close($sock);
-                    }
-                }
-            } else {
-                socket_close($sock);
+        if ($this->debug) {
+            $this->debugInfo(
+                sprintf(
+                    '<b>Packet type %d (%s) sent</b>',
+                    $this->radiusPacket,
+                    $this->getRadiusPacketInfo($this->radiusPacket)
+                )
+            );
+            foreach($this->attributesToSend as $attr) {
+                $attr = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                $this->debugInfo(
+                    sprintf(
+                        'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
+                        ord(substr($attr, 0, 1)),
+                        ord(substr($attr, 1, 1)) - 2,
+                        $attr[1],
+                        $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
+                    )
+                );
             }
         }
+
+        stream_set_blocking($conn, false);
+
+        $read    = array($conn);
+        $write   = null;
+        $except  = null;
+        $changed = stream_select($read, $write, $except, $this->timeout);
+
+        if ($changed > 0) {
+            $receivedPacket = fgets($conn, 1024);
+        } elseif ($changed === false) {
+            $this->errorCode    = 0;
+            $this->errorMessage = 'Failed to select data from stream';
+            return false;
+        } else {
+            $this->errorCode    = 60;
+            $this->errorMessage = 'Connection timed out';
+            return false;
+        }
+
+        // TODO: more response packet validation and sanity checking
 
         $this->radiusPacketReceived = intval(ord(substr($receivedPacket, 0, 1)));
 
@@ -599,9 +631,9 @@ class Radius
 
         if ($this->radiusPacketReceived > 0) {
             $this->identifierReceived = intval(ord(substr($receivedPacket, 1, 1)));
-            $packet_length = (intval(ord(substr($receivedPacket, 2, 1))) * 256) + (intval(ord(substr($receivedPacket, 3, 1))));
+            $packetLen = (intval(ord(substr($receivedPacket, 2, 1))) * 256) + (intval(ord(substr($receivedPacket, 3, 1))));
             $this->responseAuthenticator = substr($receivedPacket, 4, 16);
-            $attrContent = substr($receivedPacket, 20, ($packet_length - 4 - 16));
+            $attrContent = substr($receivedPacket, 20, ($packetLen - 4 - 16));
 
             while (strlen($attrContent) > 2) {
                 $attrType     = intval(ord(substr($attrContent, 0, 1)));
@@ -635,7 +667,12 @@ class Radius
             }
         }
 
-        return (2 == ($this->radiusPacketReceived));
+        if ($this->radiusPacketReceived == self::TYPE_ACCESS_REJECT) {
+            $this->errorCode    = 3;
+            $this->errorMessage = 'Access rejected';
+        }
+
+        return (self::TYPE_ACCESS_ACCEPT == ($this->radiusPacketReceived));
     }
 
     protected function getNextIdentifier()
@@ -674,9 +711,9 @@ class Radius
         return $this;
     }
 
-    protected function setPacketCodeToSend($packet_code)
+    protected function setPacketType($type)
     {
-        $this->radiusPacket = $packet_code;
+        $this->radiusPacket = $type;
         return $this;
     }
 
@@ -718,8 +755,8 @@ class Radius
                     break;
                 case 'I':
                     $value = (ord(substr($rawValue, 0, 1)) * 256 * 256 * 256) +
-                             (ord(substr($rawValue, 1, 1)) *256 * 256) +
-                             (ord(substr($rawValue, 2, 1)) *256) +
+                             (ord(substr($rawValue, 1, 1)) * 256 * 256) +
+                             (ord(substr($rawValue, 2, 1)) * 256) +
                               ord(substr($rawValue, 3, 1));
                     break;
                 case 'D':
