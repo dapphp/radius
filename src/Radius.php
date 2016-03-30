@@ -87,33 +87,82 @@ class Radius
 
     /** @var int Access-Challenge packet type identifier */
     const TYPE_ACCESS_CHALLENGE    = 11;
+
+    /** @var int Reserved packet type */
     const TYPE_RESERVED            = 255;
 
-    protected $server;                // Radius server IP address
-    protected $secret;                // Shared secret with the radius server
-    protected $suffix;                // Radius suffix (default is '');
-    protected $timeout;               // Timeout of the UDP connection in seconds (default value is 5)
-    protected $authenticationPort;    // Authentication port (default value is 1812)
-    protected $accountingPort;        // Accouting port (default value is 1813)
-    protected $nasIpAddress;          // NAS IP address
-    protected $nasPort;               // NAS port
-    protected $encryptedPassword;     // Encrypted password, as described in the RFC 2865
-    protected $requestAuthenticator;  // Request-Authenticator, 16 octets random number
-    protected $responseAuthenticator; // Request-Authenticator, 16 octets random number
-    protected $username;              // Username to sent to the Radius server
-    protected $password;              // Password to sent to the Radius server (clear password, must be encrypted)
-    protected $identifierToSend;      // Identifier field for the packet to be sent
-    protected $identifierReceived;    // Identifier field for the received packet
-    protected $radiusPacket;          // Radius packet code (1=Access-Request, 2=Access-Accept, 3=Access-Reject, 4=Accounting-Request, 5=Accounting-Response, 11=Access-Challenge, 12=Status-Server (experimental), 13=Status-Client (experimental), 255=Reserved
-    protected $radiusPacketReceived;  // Radius packet code (1=Access-Request, 2=Access-Accept, 3=Access-Reject, 4=Accounting-Request, 5=Accounting-Response, 11=Access-Challenge, 12=Status-Server (experimental), 13=Status-Client (experimental), 255=Reserved
-    protected $attributesToSend;      // Radius attributes to send
-    protected $attributesReceived;    // Radius attributes received
-    protected $socket;                // Socket connection
-    protected $debug;                 // Debug mode flag
-    protected $attributesInfo;        // Attributes info array
-    protected $radiusPackets;         // Radius packet codes info array
-    protected $errorCode;             // Last error code
-    protected $errorMessage;          // Last error message
+
+    /** @var string RADIUS server hostname or IP address */
+    protected $server;
+
+    /** @var string Shared secret with the RADIUS server */
+    protected $secret;
+
+    /** @var string RADIUS suffix (default is '') */
+    protected $suffix;
+
+    /** @var int Timeout for receiving UDP response packets (default = 5 seconds) */
+    protected $timeout;
+
+    /** @var int Authentication port (default = 1812) */
+    protected $authenticationPort;
+
+    /** @var int Accounting port (default = 1813) */
+    protected $accountingPort;
+
+    /** @var string Network Access Server (client) IP Address */
+    protected $nasIpAddress;
+
+    /** @var string NAS port. Physical port of the NAS authenticating the user */
+    protected $nasPort;
+
+    /** @var string Encrypted password, as described in RFC 2865 */
+    protected $encryptedPassword;
+
+    /** @var int Request-Authenticator, 16 octets random number */
+    protected $requestAuthenticator;
+
+    /** @var int Request-Authenticator from the response */
+    protected $responseAuthenticator;
+
+    /** @var string Username to send to the RADIUS server */
+    protected $username;
+
+    /** @var string Password for authenticating with the RADIUS server (before encryption) */
+    protected $password;
+
+    /** @var string Identifier field for the packet to be sent */
+    protected $identifierToSend;
+
+    /** @var string Identifier field for the received packet */
+    protected $identifierReceived;
+
+    /** @var int RADIUS packet type (1=Access-Request, 2=Access-Accept, etc) */
+    protected $radiusPacket;
+
+    /** @var int Packet type received in response from RADIUS server */
+    protected $radiusPacketReceived;
+
+    /** @var array List of RADIUS attributes to send */
+    protected $attributesToSend;
+
+    /** @var array List of attributes received in response */
+    protected $attributesReceived;
+
+    /** @var bool Whether or not to enable debug output */
+    protected $debug;
+
+    /** @var array RADIUS attributes info array */
+    protected $attributesInfo;
+
+    /** @var array RADIUS packet codes info array */
+    protected $radiusPackets;
+
+    /** @var int The error code from the last operation */
+    protected $errorCode;
+
+    /** @var string The error message from the last operation */
+    protected $errorMessage;
 
 
     public function __construct($radiusHost         = '127.0.0.1',
@@ -123,6 +172,7 @@ class Radius
                                 $authenticationPort = 1812,
                                 $accountingPort     = 1813)
     {
+        $this->radiusPackets      = array();
         $this->radiusPackets[1]   = 'Access-Request';
         $this->radiusPackets[2]   = 'Access-Accept';
         $this->radiusPackets[3]   = 'Access-Reject';
@@ -133,6 +183,7 @@ class Radius
         $this->radiusPackets[13]  = 'Status-Client (experimental)';
         $this->radiusPackets[255] = 'Reserved';
 
+        $this->attributesInfo     = array();
         $this->attributesInfo[1]  = array('User-Name', 'S');
         $this->attributesInfo[2]  = array('User-Password', 'S');
         $this->attributesInfo[3]  = array('CHAP-Password', 'S'); // Type (1) / Length (1) / CHAP Ident (1) / String
@@ -180,21 +231,21 @@ class Radius
 
         $this->identifierToSend = 0;
 
-        $this->generateRequestAuthenticator();
-        $this->setServer($radiusHost);
-        $this->setSecret($sharedSecret);
-        $this->setAuthenticationPort($authenticationPort);
-        $this->setAccountingPort($accountingPort);
-        $this->setRadiusSuffix($radiusSuffix);
-        $this->setTimeout($timeout);
-        $this->setUsername();
-        $this->setPassword();
-        $this->SetNasIpAddress();
-        $this->setNasPort();
+        $this->generateRequestAuthenticator()
+             ->setServer($radiusHost)
+             ->setSecret($sharedSecret)
+             ->setAuthenticationPort($authenticationPort)
+             ->setAccountingPort($accountingPort)
+             ->setTimeout($timeout)
+             ->setRadiusSuffix($radiusSuffix)
+             ->setUsername()
+             ->setPassword()
+             ->SetNasIpAddress()
+             ->setNasPort();
 
-        $this->clearError();
-        $this->clearDataToSend();
-        $this->clearDataReceived();
+        $this->clearError()
+             ->clearDataToSend()
+             ->clearDataReceived();
     }
 
     public function getLastError()
