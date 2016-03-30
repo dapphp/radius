@@ -127,7 +127,7 @@ class Radius
         $this->attributesInfo[11] = array('Filter-Id', 'T');
         $this->attributesInfo[12] = array('Framed-MTU', 'I');
         $this->attributesInfo[13] = array('Framed-Compression', 'I');
-        $this->attributesInfo[14] = array( 'Login-IP-Host', 'A');
+        $this->attributesInfo[14] = array('Login-IP-Host', 'A');
         $this->attributesInfo[15] = array('Login-service', 'I');
         $this->attributesInfo[16] = array('Login-TCP-Port', 'I');
         $this->attributesInfo[17] = array('(unassigned)', '');
@@ -229,6 +229,11 @@ class Radius
         $this->setAttribute(1, $this->username);
 
         return $this;
+    }
+
+    public function getUsername()
+    {
+        return $this->username;
     }
 
     public function setPassword($password = '')
@@ -466,13 +471,19 @@ class Radius
         return $this;
     }
 
+    public function resetAttributes()
+    {
+        $this->attributesToSend = null;
+        return $this;
+    }
+
     public function decodeVendorSpecificContent($rawValue)
     {
         $result   = array();
         $offset   = 0;
         $vendorId = (ord(substr($rawValue, 0, 1)) * 256 * 256 * 256) +
                     (ord(substr($rawValue, 1, 1)) * 256 * 256) +
-                    (ord(substr($rawValue, 2, 1)) *256) +
+                    (ord(substr($rawValue, 2, 1)) * 256) +
                      ord(substr($rawValue, 3, 1));
 
         $offset += 4;
@@ -512,22 +523,21 @@ class Radius
             $this->setTimeout($timeout);
         }
 
-        $attributes_content = '';
-        for ($i = 0; $i < count($this->attributesToSend); ++$i)
-        {
-            $attributes_content .= $this->attributesToSend[$i];
+        $attrContent = '';
+        for ($i = 0; $i < count($this->attributesToSend); ++$i) {
+            $attrContent .= $this->attributesToSend[$i];
         }
 
         $packet_length  = 4; // Radius packet code + Identifier + Length high + Length low
-        $packet_length += strlen($this->requestAuthenticator); // Request-Authenticator
-        $packet_length += strlen($attributes_content); // Attributes
+        $packet_length += strlen($this->getRequestAuthenticator()); // Request-Authenticator
+        $packet_length += strlen($attrContent); // Attributes
 
         $packet_data  = chr($this->radiusPacket);
         $packet_data .= chr($this->getNextIdentifier());
         $packet_data .= chr(intval($packet_length/256));
         $packet_data .= chr(intval($packet_length%256));
-        $packet_data .= $this->requestAuthenticator;
-        $packet_data .= $attributes_content;
+        $packet_data .= $this->getRequestAuthenticator();
+        $packet_data .= $attrContent;
 
         $sock = socket_create(AF_INET, SOCK_DGRAM, 17); // UDP packet = 17
 
@@ -541,12 +551,20 @@ class Radius
             $this->errorCode    = socket_last_error();
             $this->errorMessage = socket_strerror($this->errorCode);
         } else {
-            $this->debugInfo('<b>Packet type '.$this->radiusPacket.' ('.$this->getRadiusPacketInfo($this->radiusPacket).')'.' sent</b>');
+            $this->debugInfo(sprintf('<b>Packet type %d (%s) sent</b>', $this->radiusPacket, $this->getRadiusPacketInfo($this->radiusPacket)));
             if ($this->debug) {
                 $readable_attributes = '';
-                foreach($this->attributesToSend as $one_attribute_to_send) {
-                    $attribute_info = $this->getAttributesInfo(ord(substr($one_attribute_to_send,0,1)));
-                    $this->debugInfo('Attribute '.ord(substr($one_attribute_to_send,0,1)).' ('.$attribute_info[0].'), length '.(ord(substr($one_attribute_to_send,1,1))-2).', format '.$attribute_info[1].', value <em>'.$this->decodeAttribute(substr($one_attribute_to_send,2), ord(substr($one_attribute_to_send,0,1))).'</em>');
+                foreach($this->attributesToSend as $attr) {
+                    $attr = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                    $this->debugInfo(
+                        sprintf(
+                            'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
+                            ord(substr($attr, 0, 1)),
+                            ord(substr($attr, 1, 1)) - 2,
+                            $attr[1],
+                            $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
+                         )
+                    );
                 }
             }
 
@@ -573,32 +591,47 @@ class Radius
 
         $this->radiusPacketReceived = intval(ord(substr($receivedPacket, 0, 1)));
 
-        $this->debugInfo('<b>Packet type '.$this->radiusPacketReceived.' ('.$this->getRadiusPacketInfo($this->getResponsePacket()).')'.' received</b>');
+        $this->debugInfo(sprintf(
+            '<b>Packet type %d (%s) received</b>',
+            $this->radiusPacketReceived,
+            $this->getRadiusPacketInfo($this->getResponsePacket())
+        ));
 
         if ($this->radiusPacketReceived > 0) {
             $this->identifierReceived = intval(ord(substr($receivedPacket, 1, 1)));
             $packet_length = (intval(ord(substr($receivedPacket, 2, 1))) * 256) + (intval(ord(substr($receivedPacket, 3, 1))));
             $this->responseAuthenticator = substr($receivedPacket, 4, 16);
-            $attributes_content = substr($receivedPacket, 20, ($packet_length - 4 - 16));
-            while (strlen($attributes_content) > 2) {
-                $attribute_type = intval(ord(substr($attributes_content,0,1)));
-                $attribute_length = intval(ord(substr($attributes_content,1,1)));
-                $attribute_raw_value = substr($attributes_content,2,$attribute_length-2);
-                $attributes_content = substr($attributes_content, $attribute_length);
+            $attrContent = substr($receivedPacket, 20, ($packet_length - 4 - 16));
 
-                $attribute_value = $this->decodeAttribute($attribute_raw_value, $attribute_type);
+            while (strlen($attrContent) > 2) {
+                $attrType     = intval(ord(substr($attrContent, 0, 1)));
+                $attrLength   = intval(ord(substr($attrContent, 1, 1)));
+                $attrValueRaw = substr($attrContent, 2, $attrLength - 2);
+                $attrContent  = substr($attrContent, $attrLength);
+                $attrValue    = $this->decodeAttribute($attrValueRaw, $attrType);
 
-                $attribute_info = $this->getAttributesInfo($attribute_type);
-                if (26 == $attribute_type) {
-                    $vendor_array = $this->decodeVendorSpecificContent($attribute_value);
-                    foreach($vendor_array as $vendor_one) {
-                        $this->debugInfo('Attribute '.$attribute_type.' ('.$attribute_info[0].'), length '.($attribute_length-2).', format '.$attribute_info[1].', Vendor-Id: '.$vendor_one[0].", Vendor-type: ".$vendor_one[1].",  Attribute-specific: ".$vendor_one[2]);
+                $attr = $this->getAttributesInfo($attrType);
+                if (26 == $attrType) {
+                    $vendorArr = $this->decodeVendorSpecificContent($attrValue);
+                    foreach($vendorArr as $vendor) {
+                        $this->debugInfo(
+                            sprintf(
+                                'Attribute %d (%s), length %d, format %s, Vendor-Id: %d, Vendor-type: %s, Attribute-specific: %s',
+                                $attrType, $attr[0], $attrLength - 2,
+                                $attr[1], $vendor[0], $vendor[1], $vendor[2]
+                            )
+                        );
                     }
                 } else {
-                    $this->debugInfo('Attribute '.$attribute_type.' ('.$attribute_info[0].'), length '.($attribute_length-2).', format '.$attribute_info[1].', value <em>'.$attribute_value.'</em>');
+                    $this->debugInfo(
+                        sprintf(
+                            'Attribute %d (%s), length %d, format %s, value <em>%s</em>',
+                            $attrType, $attr[0], $attrLength - 2, $attr[1], $attrValue
+                        )
+                    );
                 }
 
-                $this->attributesReceived[] = array($attribute_type, $attribute_value);
+                $this->attributesReceived[] = array($attrType, $attrValue);
             }
         }
 
