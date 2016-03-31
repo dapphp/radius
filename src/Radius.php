@@ -240,7 +240,7 @@ class Radius
              ->setRadiusSuffix($radiusSuffix)
              ->setUsername()
              ->setPassword()
-             ->SetNasIpAddress()
+             ->setNasIpAddress()
              ->setNasPort();
 
         $this->clearError()
@@ -255,6 +255,16 @@ class Radius
         } else {
             return '';
         }
+    }
+
+    public function getErrorCode()
+    {
+        return $this->errorCode;
+    }
+
+    public function getErrorMessage()
+    {
+        return $this->errorMessage;
     }
 
     public function setDebug($enabled = true)
@@ -624,7 +634,7 @@ class Radius
 
         $sent = fwrite($conn, $packetData);
         if (!$sent || $packetLen != $sent) {
-            $this->errorCode    = 0;
+            $this->errorCode    = 55; // CURLE_SEND_ERROR
             $this->errorMessage = 'Failed to send UDP packet';
             return false;
         }
@@ -661,12 +671,12 @@ class Radius
         if ($changed > 0) {
             $receivedPacket = fgets($conn, 1024);
         } elseif ($changed === false) {
-            $this->errorCode    = 0;
+            $this->errorCode    = 2;
             $this->errorMessage = 'Failed to select data from stream';
             return false;
         } else {
-            $this->errorCode    = 60;
-            $this->errorMessage = 'Connection timed out';
+            $this->errorCode    = 28; // CURLE_OPERATION_TIMEDOUT
+            $this->errorMessage = 'Timed out while waiting for RADIUS response';
             return false;
         }
 
