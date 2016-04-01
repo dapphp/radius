@@ -585,8 +585,7 @@ class Radius
 
     public function accessRequest($username = '', $password = '', $timeout = 0, $state = null)
     {
-        $this->clearDataToSend()
-             ->clearDataReceived()
+        $this->clearDataReceived()
              ->clearError()
              ->setPacketType(self::TYPE_ACCESS_REQUEST);
 
@@ -648,13 +647,14 @@ class Radius
                 )
             );
             foreach($this->attributesToSend as $attr) {
-                $attr = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
                 $this->debugInfo(
                     sprintf(
                         'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
                         ord(substr($attr, 0, 1)),
+                        $attrInfo[0],
                         ord(substr($attr, 1, 1)) - 2,
-                        $attr[1],
+                        $attrInfo[1],
                         $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
                     )
                 );
@@ -670,9 +670,16 @@ class Radius
 
         if ($changed > 0) {
             $receivedPacket = fgets($conn, 1024);
+
+            if ($receivedPacket === false) {
+                // recv could fail due to ICMP destination unreachable
+                $this->errorCode    = 56; // CURLE_RECV_ERROR
+                $this->errorMessage = 'Failure with receiving network data';
+                return false;
+            }
         } elseif ($changed === false) {
             $this->errorCode    = 2;
-            $this->errorMessage = 'Failed to select data from stream';
+            $this->errorMessage = 'stream_select returned false';
             return false;
         } else {
             $this->errorCode    = 28; // CURLE_OPERATION_TIMEDOUT
