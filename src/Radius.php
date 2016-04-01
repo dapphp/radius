@@ -612,14 +612,14 @@ class Radius
             $attrContent .= $this->attributesToSend[$i];
         }
 
+        $attrLen    = strlen($attrContent);
         $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
         $packetLen += strlen($this->getRequestAuthenticator()); // Request-Authenticator
-        $packetLen += strlen($attrContent); // Attributes
+        $packetLen += $attrLen; // Attributes
 
         $packetData  = chr($this->radiusPacket);
         $packetData .= chr($this->getNextIdentifier());
-        $packetData .= chr(intval($packetLen / 256));
-        $packetData .= chr(intval($packetLen % 256));
+        $packetData .= pack('n', $packetLen);
         $packetData .= $this->getRequestAuthenticator();
         $packetData .= $attrContent;
 
@@ -662,7 +662,6 @@ class Radius
         }
 
         stream_set_blocking($conn, false);
-
         $read    = array($conn);
         $write   = null;
         $except  = null;
@@ -670,7 +669,6 @@ class Radius
 
         if ($changed > 0) {
             $receivedPacket = fgets($conn, 1024);
-
             if ($receivedPacket === false) {
                 // recv could fail due to ICMP destination unreachable
                 $this->errorCode    = 56; // CURLE_RECV_ERROR
@@ -699,9 +697,27 @@ class Radius
 
         if ($this->radiusPacketReceived > 0) {
             $this->identifierReceived = intval(ord(substr($receivedPacket, 1, 1)));
-            $packetLen = (intval(ord(substr($receivedPacket, 2, 1))) * 256) + (intval(ord(substr($receivedPacket, 3, 1))));
-            $this->responseAuthenticator = substr($receivedPacket, 4, 16);
-            $attrContent = substr($receivedPacket, 20, ($packetLen - 4 - 16));
+            $packetLenRx = unpack('n', substr($receivedPacket, 2, 2));
+            $packetLenRx = array_shift($packetLenRx);
+            $this->responseAuthenticator = bin2hex(substr($receivedPacket, 4, 16));
+            if ($packetLenRx > 20) {
+                $attrContent = substr($receivedPacket, 20, ($packetLenRx - 4 - 16));
+            } else {
+                $attrContent = '';
+            }
+
+            $authCheck = md5(sprintf('%s%s%s%s',
+                substr($receivedPacket, 0, 4),
+                $this->getRequestAuthenticator(),
+                $attrContent,
+                $this->getSecret())
+            );
+
+            if ($authCheck !== $this->responseAuthenticator) {
+                $this->errorCode    = 101;
+                $this->errorMessage = 'Response authenticator in received packet did not match expected value';
+                return false;
+            }
 
             while (strlen($attrContent) > 2) {
                 $attrType     = intval(ord(substr($attrContent, 0, 1)));
