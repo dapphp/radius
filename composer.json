@@ -2,6 +2,8 @@
     "name": "dapphp/radius",
     "description": "A pure PHP RADIUS client based on the SysCo/al implementation",
     "type": "library",
+    "keywords": ["radius","authentication","authorization"],
+    "homepage": "https://github.com/dapphp/radius",
     "require": {
         "php": ">=5.3"
     },
@@ -16,5 +18,10 @@
             "name": "SysCo/al",
             "homepage": "http://developer.sysco.ch/php/"
         }
-    ]
+    ],
+    "autoload": {
+        "psr-4": {
+            "Dapphp\\Radius\\": "src/"
+        }
+    }
 }
