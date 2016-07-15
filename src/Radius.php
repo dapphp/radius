@@ -661,31 +661,11 @@ class Radius
             }
         }
 
-        stream_set_blocking($conn, false);
-        $read    = array($conn);
-        $write   = null;
-        $except  = null;
-        $changed = stream_select($read, $write, $except, $this->timeout);
+        $receivedPacket = $this->readRadiusResponse($conn);
 
-        if ($changed > 0) {
-            $receivedPacket = fgets($conn, 1024);
-            if ($receivedPacket === false) {
-                // recv could fail due to ICMP destination unreachable
-                $this->errorCode    = 56; // CURLE_RECV_ERROR
-                $this->errorMessage = 'Failure with receiving network data';
-                return false;
-            }
-        } elseif ($changed === false) {
-            $this->errorCode    = 2;
-            $this->errorMessage = 'stream_select returned false';
-            return false;
-        } else {
-            $this->errorCode    = 28; // CURLE_OPERATION_TIMEDOUT
-            $this->errorMessage = 'Timed out while waiting for RADIUS response';
+        if (!$receivedPacket) {
             return false;
         }
-
-        // TODO: more response packet validation and sanity checking
 
         $this->radiusPacketReceived = intval(ord(substr($receivedPacket, 0, 1)));
 
@@ -757,6 +737,74 @@ class Radius
         }
 
         return (self::TYPE_ACCESS_ACCEPT == ($this->radiusPacketReceived));
+    }
+
+    protected function readRadiusResponse($conn)
+    {
+        stream_set_blocking($conn, false);
+        $read    = array($conn);
+        $write   = null;
+        $except  = null;
+
+        $receivedPacket = '';
+        $packetLen      = null;
+        $elapsed        = 0;
+
+        do {
+            // Loop until the entire packet is read.  Even with small packets,
+            // not all data might get returned in one read on a non-blocking stream.
+
+            $t0      = microtime(true);
+            $changed = stream_select($read, $write, $except, $this->timeout);
+            $t1      = microtime(true);
+
+            if ($changed > 0) {
+                $data = fgets($conn, 1024);
+                // Try to read as much data from the stream in one pass until 4
+                // bytes are read.  Once we have 4 bytes, we can determine the
+                // length of the RADIUS response to know when to stop reading.
+
+                if ($data === false) {
+                    // recv could fail due to ICMP destination unreachable
+                    $this->errorCode    = 56; // CURLE_RECV_ERROR
+                    $this->errorMessage = 'Failure with receiving network data';
+                    return false;
+                }
+
+                $receivedPacket .= $data;
+
+                if (strlen($receivedPacket) < 4) {
+                    // not enough data to get the size
+                    // this will probably never happen
+                    continue;
+                }
+
+                if ($packetLen == null) {
+                    // first pass - decode the packet size from response
+                    $packetLen = unpack('n', substr($receivedPacket, 2, 2));
+                    $packetLen = (int)array_shift($packetLen);
+
+                    if ($packetLen < 4 || $packetLen > 65507) {
+                        $this->errorCode = 102;
+                        $this->errorMessage = "Bad packet size in RADIUS response.  Got {$packetLen}";
+                        return false;
+                    }
+                }
+
+            } elseif ($changed === false) {
+                $this->errorCode    = 2;
+                $this->errorMessage = 'stream_select returned false';
+                return false;
+            } else {
+                $this->errorCode    = 28; // CURLE_OPERATION_TIMEDOUT
+                $this->errorMessage = 'Timed out while waiting for RADIUS response';
+                return false;
+            }
+
+            $elapsed += ($t1 - $t0);
+        } while ($elapsed < $this->timeout && strlen($receivedPacket) < $packetLen);
+
+        return $receivedPacket;
     }
 
     protected function getNextIdentifier()
