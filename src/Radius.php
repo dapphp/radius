@@ -131,6 +131,9 @@ class Radius
     /** @var string Password for authenticating with the RADIUS server (before encryption) */
     protected $password;
 
+    /** @var int The CHAP identifier for CHAP-Password attributes */
+    protected $chapIdentifier;
+
     /** @var string Identifier field for the packet to be sent */
     protected $identifierToSend;
 
@@ -229,7 +232,8 @@ class Radius
         $this->attributesInfo[63] = array('Login-LAT-Port', 'S');
         $this->attributesInfo[76] = array('Prompt', 'I');
 
-        $this->identifierToSend = 0;
+        $this->identifierToSend = -1;
+        $this->chapIdentifier   = 1;
 
         $this->generateRequestAuthenticator()
              ->setServer($radiusHost)
@@ -237,11 +241,7 @@ class Radius
              ->setAuthenticationPort($authenticationPort)
              ->setAccountingPort($accountingPort)
              ->setTimeout($timeout)
-             ->setRadiusSuffix($radiusSuffix)
-             ->setUsername()
-             ->setPassword()
-             ->setNasIpAddress()
-             ->setNasPort();
+             ->setRadiusSuffix($radiusSuffix);
 
         $this->clearError()
              ->clearDataToSend()
@@ -316,20 +316,34 @@ class Radius
         return $this->username;
     }
 
-    public function setPassword($password = '')
+    public function setPassword($password)
     {
         $this->password    = $password;
+        $encryptedPassword = $this->getEncryptedPassword($password, $this->getSecret(), $this->getRequestAuthenticator());
+
+        $this->setAttribute(2, $encryptedPassword);
+
+        return $this;
+    }
+
+    public function getPassword()
+    {
+        return $this->password;
+    }
+
+    public function getEncryptedPassword($password, $secret, $requestAuthenticator)
+    {
         $encryptedPassword = '';
         $paddedPassword    = $password;
 
-        if (0 != (strlen($password)%16)) {
+        if (0 != (strlen($password) % 16)) {
             $paddedPassword .= str_repeat(chr(0), (16 - strlen($password) % 16));
         }
 
-        $previous = $this->getRequestAuthenticator();
+        $previous = $requestAuthenticator;
 
         for ($i = 0; $i < (strlen($paddedPassword) / 16); ++$i) {
-            $temp = md5($this->getSecret() . $previous);
+            $temp = md5($secret . $previous);
 
             $previous = '';
             for ($j = 0; $j <= 15; ++$j) {
@@ -341,15 +355,37 @@ class Radius
             $encryptedPassword .= $previous;
         }
 
-        $this->encryptedPassword = $encryptedPassword;
-        $this->setAttribute(2, $this->encryptedPassword);
+        return $encryptedPassword;
+    }
+
+    public function setChapId($nextId)
+    {
+        $this->chapIdentifier = (int)$nextId;
 
         return $this;
     }
 
-    public function getPassword()
+    public function getChapId()
     {
-        return $this->password;
+        $id = $this->chapIdentifier;
+        $this->chapIdentifier++;
+
+        return $id;
+    }
+
+    public function setChapPassword($password)
+    {
+        $chapId = $this->getChapId();
+        $chapMd5 = $this->getChapPassword($password, $chapId, $this->getRequestAuthenticator());
+
+        $this->setAttribute(3, pack('C', $chapId) . $chapMd5);
+
+        return $this;
+    }
+
+    public function getChapPassword($password, $chapId, $requestAuthenticator)
+    {
+        return md5(pack('C', $chapId) . $password . $requestAuthenticator, true);
     }
 
     public function setNasIPAddress($hostOrIp = '')
@@ -815,7 +851,7 @@ class Radius
         return $packetData;
     }
 
-    protected function getNextIdentifier()
+    public function getNextIdentifier()
     {
         $this->identifierToSend = (($this->identifierToSend + 1) % 256);
         return $this->identifierToSend;
@@ -832,7 +868,18 @@ class Radius
         return $this;
     }
 
-    protected function getRequestAuthenticator()
+    public function setRequestAuthenticator($requestAuthenticator)
+    {
+        if (strlen($requestAuthenticator) != 16) {
+            return false;
+        }
+
+        $this->requestAuthenticator = $requestAuthenticator;
+
+        return $this;
+    }
+
+    public function getRequestAuthenticator()
     {
         return $this->requestAuthenticator;
     }
@@ -851,7 +898,7 @@ class Radius
         return $this;
     }
 
-    protected function setPacketType($type)
+    public function setPacketType($type)
     {
         $this->radiusPacket = $type;
         return $this;
