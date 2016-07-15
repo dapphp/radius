@@ -607,22 +607,8 @@ class Radius
             $this->setTimeout($timeout);
         }
 
-        $attrContent = '';
-        for ($i = 0; $i < count($this->attributesToSend); ++$i) {
-            $attrContent .= $this->attributesToSend[$i];
-        }
-
-        $attrLen    = strlen($attrContent);
-        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
-        $packetLen += strlen($this->getRequestAuthenticator()); // Request-Authenticator
-        $packetLen += $attrLen; // Attributes
-
-        $packetData  = chr($this->radiusPacket);
-        $packetData .= chr($this->getNextIdentifier());
-        $packetData .= pack('n', $packetLen);
-        $packetData .= $this->getRequestAuthenticator();
-        $packetData .= $attrContent;
-
+        $packetData = $this->generateRadiusPacket();
+        $packetLen  = strlen($packetData);
 
         $conn = @fsockopen('udp://' . $this->server, $this->authenticationPort, $errno, $errstr);
         if (!$conn) {
@@ -682,16 +668,16 @@ class Radius
             $packetLenRx = array_shift($packetLenRx);
             $this->responseAuthenticator = bin2hex(substr($receivedPacket, 4, 16));
             if ($packetLenRx > 20) {
-                $attrContent = substr($receivedPacket, 20, ($packetLenRx - 4 - 16));
+                $attrContent = substr($receivedPacket, 20);
             } else {
                 $attrContent = '';
             }
 
-            $authCheck = md5(sprintf('%s%s%s%s',
-                substr($receivedPacket, 0, 4),
-                $this->getRequestAuthenticator(),
-                $attrContent,
-                $this->getSecret())
+            $authCheck = md5(
+                substr($receivedPacket, 0, 4) .
+                $this->getRequestAuthenticator() .
+                $attrContent .
+                $this->getSecret()
             );
 
             if ($authCheck !== $this->responseAuthenticator) {
@@ -806,6 +792,27 @@ class Radius
         } while ($elapsed < $this->timeout && strlen($receivedPacket) < $packetLen);
 
         return $receivedPacket;
+    }
+
+    public function generateRadiusPacket()
+    {
+        $attrContent = '';
+        for ($i = 0; $i < count($this->attributesToSend); ++$i) {
+            $attrContent .= $this->attributesToSend[$i];
+        }
+
+        $attrLen    = strlen($attrContent);
+        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
+        $packetLen += strlen($this->getRequestAuthenticator()); // Request-Authenticator
+        $packetLen += $attrLen; // Attributes
+
+        $packetData  = chr($this->radiusPacket);
+        $packetData .= chr($this->getNextIdentifier());
+        $packetData .= pack('n', $packetLen);
+        $packetData .= $this->getRequestAuthenticator();
+        $packetData .= $attrContent;
+
+        return $packetData;
     }
 
     protected function getNextIdentifier()
