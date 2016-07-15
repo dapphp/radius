@@ -538,7 +538,12 @@ class Radius
     {
         $index = -1;
         for ($i = 0; $i < count($this->attributesToSend); ++$i) {
-            if ($type == ord(substr($this->attributesToSend[$i], 0, 1))) {
+            if (is_array($this->attributesToSend[$i])) {
+                $tmp = $this->attributesToSend[$i][0];
+            } else {
+                $tmp = $this->attributesToSend[$i];
+            }
+            if ($type == ord(substr($tmp, 0, 1))) {
                 $index = $i;
                 break;
             }
@@ -579,10 +584,15 @@ class Radius
         }
 
         if ($index > -1) {
-            $this->attributesToSend[$index] = $temp;
-            $action = 'Modified';
+            if ($type == 26) { // vendor specific
+                $this->attributesToSend[$index][] = $temp;
+                $action = 'Added';
+            } else {
+                $this->attributesToSend[$index] = $temp;
+                $action = 'Modified';
+            }
         } else {
-            $this->attributesToSend[] = $temp;
+            $this->attributesToSend[] = ($type == 26 /* vendor specific */) ? array($temp) : $temp;
             $action = 'Added';
         }
 
@@ -592,9 +602,28 @@ class Radius
         return $this;
     }
 
+    public function setVendorSpecificAttribute($vendorId, $attributeType, $attributeValue)
+    {
+        $data  = pack('N', $vendorId);
+        $data .= chr($attributeType);
+        $data .= chr(2 + strlen($attributeValue));
+        $data .= $attributeValue;
+
+        $this->setAttribute(26, $data);
+
+        return $this;
+    }
+
     public function resetAttributes()
     {
         $this->attributesToSend = null;
+        return $this;
+    }
+
+    public function resetVendorSpecificAttributes()
+    {
+        $this->attributesToSend[26] = array();
+
         return $this;
     }
 
@@ -668,18 +697,24 @@ class Radius
                     $this->getRadiusPacketInfo($this->radiusPacket)
                 )
             );
-            foreach($this->attributesToSend as $attr) {
-                $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
-                $this->debugInfo(
-                    sprintf(
-                        'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
-                        ord(substr($attr, 0, 1)),
-                        $attrInfo[0],
-                        ord(substr($attr, 1, 1)) - 2,
-                        $attrInfo[1],
-                        $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
-                    )
-                );
+            foreach($this->attributesToSend as $attrs) {
+                if (!is_array($attrs)) {
+                    $attrs = array($attrs);
+                }
+
+                foreach($attrs as $attr) {
+                    $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                    $this->debugInfo(
+                        sprintf(
+                            'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
+                            ord(substr($attr, 0, 1)),
+                            $attrInfo[0],
+                            ord(substr($attr, 1, 1)) - 2,
+                            $attrInfo[1],
+                            $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
+                        )
+                    );
+                }
             }
         }
 
@@ -834,7 +869,12 @@ class Radius
     {
         $attrContent = '';
         for ($i = 0; $i < count($this->attributesToSend); ++$i) {
-            $attrContent .= $this->attributesToSend[$i];
+            if (is_array($this->attributesToSend[$i])) {
+                // vendor specific (could have multiple attributes)
+                $attrContent .= implode('', $this->attributesToSend[$i]);
+            } else {
+                $attrContent .= $this->attributesToSend[$i];
+            }
         }
 
         $attrLen    = strlen($attrContent);
