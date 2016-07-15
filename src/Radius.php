@@ -662,6 +662,7 @@ class Radius
         }
 
         $receivedPacket = $this->readRadiusResponse($conn);
+        @fclose($conn);
 
         if (!$receivedPacket) {
             return false;
