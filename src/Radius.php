@@ -11,6 +11,7 @@
  *  - Authenex Strong Authentication System (ASAS) with two-factor authentication
  *  - FreeRADIUS, a free Radius server implementation for Linux and *nix environments
  *  - Microsoft Radius server IAS
+ *  - Microsoft Windows Server 2012 R2 (Network Policy Server)
  *  - Mideye RADIUS server (http://www.mideye.com)
  *  - Radl, a free Radius server for Windows
  *  - RSA SecurID
