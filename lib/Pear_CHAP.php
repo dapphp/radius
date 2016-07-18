@@ -30,9 +30,13 @@ This code cannot simply be copied and put under the GNU Public License or
 any other GPL-like (LGPL, GPL2) License.
 
     $Id: CHAP.php 302857 2010-08-28 21:12:59Z mbretter $
+
+This version of CHAP.php has been modified by Drew Phillips for dapphp/radius.
+Modifications remove the PEAR dependency, change from PHP4 OOP to PHP5, and...
+Changes are all commented inline throughout the source.
 */
 
-require_once 'PEAR.php';
+// require_once 'PEAR.php'; // removed for dapphp/radius
 
 /**
 * Classes for generating packets for various CHAP Protocols:
@@ -53,31 +57,35 @@ require_once 'PEAR.php';
  *
  * @package Crypt_CHAP
  */
-class Crypt_CHAP extends PEAR
+class Crypt_CHAP /*extends PEAR // removed for dapphp/radius */
 {
     /**
      * Random binary challenge
      * @var  string
      */
-    var $challenge = null;
+    public $challenge = null;
+    //var $challenge = null;  // removed for dapphp/radius
 
     /**
      * Binary response
      * @var  string
      */
-    var $response = null;
+    public $response = null;
+    //var $response = null;  // removed for dapphp/radius
 
     /**
      * User password
      * @var  string
      */
-    var $password = null;
+    public $password = null;
+    //var $password = null;  // removed for dapphp/radius
 
     /**
      * Id of the authentication request. Should incremented after every request.
      * @var  integer
      */
-    var $chapid = 1;
+    public $chapid = 1;
+    //var $chapid = 1;  // removed for dapphp/radius
 
     /**
      * Constructor
@@ -85,9 +93,10 @@ class Crypt_CHAP extends PEAR
      * Generates a random challenge
      * @return void
      */
-    function Crypt_CHAP()
+    //function Crypt_CHAP()  // removed for dapphp/radius
+    public function __construct()
     {
-        $this->PEAR();
+        //$this->PEAR();
         $this->generateChallenge();
     }
 
@@ -98,7 +107,8 @@ class Crypt_CHAP extends PEAR
      * @param  integer $size     Size of the challenge in Bytes
      * @return void
      */
-    function generateChallenge($varname = 'challenge', $size = 8)
+    //function generateChallenge($varname = 'challenge', $size = 8)  // removed for dapphp/radius
+    public function generateChallenge($varname = 'challenge', $size = 8)
     {
         $this->$varname = '';
         for ($i = 0; $i < $size; $i++) {
@@ -112,7 +122,8 @@ class Crypt_CHAP extends PEAR
      *
      * @return void
      */
-    function challengeResponse()
+    //function challengeResponse()  // removed for dapphp/radius
+    public function challengeResponse()
     {
     }
 
@@ -136,7 +147,8 @@ class Crypt_CHAP_MD5 extends Crypt_CHAP
      *
      * @return string
      */
-    function challengeResponse()
+    //function challengeResponse()  // removed for dapphp/radius
+    public function challengeResponse()
     {
         return pack('H*', md5(pack('C', $this->chapid) . $this->password . $this->challenge));
     }
@@ -159,7 +171,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * 0 = use LM-Response, 1 = use NT-Response
      * @var  bool
      */
-    var $flags = 1;
+    protected $flags = 1;
+    //var $flags = 1;  // removed for dapphp/radius
 
     /**
      * Constructor
@@ -167,10 +180,14 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * Loads the hash extension
      * @return void
      */
-    function Crypt_CHAP_MSv1()
+    //function Crypt_CHAP_MSv1()  // removed for dapphp/radius
+    public function __construct()
     {
-        $this->Crypt_CHAP();
-        $this->loadExtension('hash');
+        parent::__construct();
+
+        // removed for dapphp/radius
+        //$this->Crypt_CHAP();
+        //$this->loadExtension('hash');
     }
 
     /**
@@ -179,7 +196,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function ntPasswordHash($password = null)
+    //function ntPasswordHash($password = null)  // removed for dapphp/radius
+    public function ntPasswordHash($password = null)
     {
         if (isset($password)) {
             return pack('H*',hash('md4', $this->str2unicode($password)));
@@ -194,7 +212,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function str2unicode($str)
+    //function str2unicode($str)  // removed for dapphp/radius
+    public function str2unicode($str)
     {
         $uni = '';
         $str = (string) $str;
@@ -211,7 +230,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function challengeResponse()
+    //function challengeResponse()  // removed for dapphp/radius
+    public function challengeResponse()
     {
         return $this->_challengeResponse();
     }
@@ -222,7 +242,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function ntChallengeResponse()
+    //function ntChallengeResponse()  // removed for dapphp/radius
+    public function ntChallengeResponse()
     {
         return $this->_challengeResponse(false);
     }
@@ -233,7 +254,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function lmChallengeResponse()
+    //function lmChallengeResponse()  // removed for dapphp/radius
+    public function lmChallengeResponse()
     {
         return $this->_challengeResponse(true);
     }
@@ -247,7 +269,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access private
      * @return string
      */
-    function _challengeResponse($lm = false)
+    //function _challengeResponse($lm = false)  // removed for dapphp/radius
+    private function _challengeResponse($lm = false)
     {
         if ($lm) {
             $hash = $this->lmPasswordHash();
@@ -286,7 +309,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access public
      * @return string
      */
-    function lmPasswordHash($password = null)
+    //function lmPasswordHash($password = null)  // removed for dapphp/radius
+    public function lmPasswordHash($password = null)
     {
         $plain = isset($password) ? $password : $this->password;
 
@@ -304,7 +328,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access private
      * @return string
      */
-    function _desHash($plain)
+    //function _desHash($plain)  // removed for dapphp/radius
+    private function _desHash($plain)
     {
         $key = $this->_desAddParity($plain);
         $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
@@ -323,7 +348,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @param  string  $key 7-Bytes Key without parity
      * @return string
      */
-    function _desAddParity($key)
+    //function _desAddParity($key)  // removed for dapphp/radius
+    private function _desAddParity($key)
     {
         static $odd_parity = array(
                 1,  1,  2,  2,  4,  4,  7,  7,  8,  8, 11, 11, 13, 13, 14, 14,
@@ -365,7 +391,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @access private
      * @return string
      */
-    function response($lm = false)
+    //function response($lm = false)  // removed for dapphp/radius
+    public function response($lm = false)
     {
         $ntresp = $this->ntChallengeResponse();
         if ($lm) {
@@ -395,19 +422,22 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * The username
      * @var  string
      */
-    var $username = null;
+    public $username = null;
+    //var $username = null; // removed for dapphp/radius
 
     /**
      * The 16 Bytes random binary peer challenge
      * @var  string
      */
-    var $peerChallenge = null;
+    public $peerChallenge = null;
+    //var $peerChallenge = null;  // removed for dapphp/radius
 
     /**
      * The 16 Bytes random binary authenticator challenge
      * @var  string
      */
-    var $authChallenge = null;
+    public $authChallenge = null;
+    //var $authChallenge = null;  // removed for dapphp/radius
 
     /**
      * Constructor
@@ -415,9 +445,11 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * Generates the 16 Bytes peer and authentication challenge
      * @return void
      */
-    function Crypt_CHAP_MSv2()
+    //function Crypt_CHAP_MSv2()  // removed for dapphp/radius
+    public function __construct()
     {
-        $this->Crypt_CHAP_MSv1();
+        //$this->Crypt_CHAP_MSv1();  // removed for dapphp/radius
+        parent::__construct();
         $this->generateChallenge('peerChallenge', 16);
         $this->generateChallenge('authChallenge', 16);
     }
@@ -429,7 +461,8 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @param  string  $nthash The NT-HASH
      * @return string
      */
-    function ntPasswordHashHash($nthash)
+    //function ntPasswordHashHash($nthash)  // removed for dapphp/radius
+    public function ntPasswordHashHash($nthash)
     {
         return pack('H*',hash('md4', $nthash));
     }
@@ -441,7 +474,8 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @access public
      * @return string
      */
-    function challengeHash()
+    //function challengeHash()  // removed for dapphp/radius
+    public function challengeHash()
     {
         return substr(pack('H*',hash('sha1', $this->peerChallenge . $this->authChallenge . $this->username)), 0, 8);
     }
@@ -452,12 +486,10 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @access public
      * @return string
      */
-    function challengeResponse()
+    //function challengeResponse()  // removed for dapphp/radius
+    public function challengeResponse()
     {
         $this->challenge = $this->challengeHash();
         return $this->_challengeResponse();
     }
 }
-
-
-?>
