@@ -231,6 +231,7 @@ class Radius
         $this->attributesInfo[62] = array('Port-Limit', 'I');
         $this->attributesInfo[63] = array('Login-LAT-Port', 'S');
         $this->attributesInfo[76] = array('Prompt', 'I');
+        $this->attributesInfo[80] = array('Message-Authenticator', 'S');
 
         $this->identifierToSend = -1;
         $this->chapIdentifier   = 1;
@@ -386,6 +387,29 @@ class Radius
     public function getChapPassword($password, $chapId, $requestAuthenticator)
     {
         return md5(pack('C', $chapId) . $password . $requestAuthenticator, true);
+    }
+
+    public function setMsChapPassword($password, $challenge = null)
+    {
+        require_once __DIR__ . '/../lib/Pear_CHAP.php';
+        require_once __DIR__ . '/VendorId.php';
+
+        $chap = new \Crypt_CHAP_MSv1();
+        $chap->chapid   = mt_rand(1, 255);
+        $chap->password = $password;
+        if (is_null($challenge)) {
+            $chap->generateChallenge();
+        } else {
+            $chap->challenge = $challenge;
+        }
+
+        $response = "\x00\x01" . str_repeat ("\0", 24) . $chap->ntChallengeResponse();
+
+        $this->setAttribute(80, str_repeat("\x00", 16)); // message authenticator (all 0's)
+        $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 11, $chap->challenge);
+        $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 1, $response);
+
+        return $this;
     }
 
     public function setNasIPAddress($hostOrIp = '')
@@ -867,12 +891,23 @@ class Radius
 
     public function generateRadiusPacket()
     {
+        $hasAuthenticator = false;
         $attrContent = '';
+        $len         = 0;
+        $offset      = null;
         for ($i = 0; $i < count($this->attributesToSend); ++$i) {
+            $len = strlen($attrContent);
+
             if (is_array($this->attributesToSend[$i])) {
                 // vendor specific (could have multiple attributes)
                 $attrContent .= implode('', $this->attributesToSend[$i]);
             } else {
+                if (ord($this->attributesToSend[$i][0]) == 80) {
+                    // If Message-Authenticator is set, note offset so it can be updated
+                    $hasAuthenticator = true;
+                    $offset = $len + 2; // current length + type(1) + length(1)
+                }
+
                 $attrContent .= $this->attributesToSend[$i];
             }
         }
@@ -883,12 +918,29 @@ class Radius
         $packetLen += $attrLen; // Attributes
 
         $packetData  = chr($this->radiusPacket);
-        $packetData .= chr($this->getNextIdentifier());
+        $packetData .= pack('C', $this->getNextIdentifier());
         $packetData .= pack('n', $packetLen);
         $packetData .= $this->getRequestAuthenticator();
         $packetData .= $attrContent;
 
+        if ($hasAuthenticator && !is_null($offset)) {
+            $messageAuthenticator = hash_hmac('md5', $packetData, $this->secret, true);
+            // calculate packet hmac, replace hex 0's with actual hash
+            for ($i = 0; $i < strlen($messageAuthenticator); ++$i) {
+                $packetData[20 + $offset + $i] = $messageAuthenticator[$i];
+            }
+        }
+
         return $packetData;
+    }
+
+    public function setNextIdentifier($identifierToSend = 0)
+    {
+        $id = (int)$identifierToSend;
+
+        $this->identifierToSend = $id - 1;
+
+        return $this;
     }
 
     public function getNextIdentifier()
