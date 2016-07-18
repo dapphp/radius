@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * RADIUS client example using PAP password.
+ */
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,8 +16,8 @@ $radius->setServer('127.0.0.1')        // IP or hostname of RADIUS server
        ->setAttribute(32, 'vpn')       // NAS identifier
        ->setDebug();                   // Enable debug output to screen/console
 
-// Send access request for user with password mys3cr3t
-$response = $radius->accessRequest('drew010', 'mys3cr3t');
+// Send access request for a user with username = 'username' and password = 'password!'
+$response = $radius->accessRequest('username', 'password!');
 
 if ($response === false) {
     // false returned on failure
@@ -25,4 +29,3 @@ if ($response === false) {
     // access request was accepted - client authenticated successfully
     echo "Success!  Received Access-Accept response from RADIUS server.\n";
 }
-
