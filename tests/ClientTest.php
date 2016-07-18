@@ -89,4 +89,45 @@ class ClientTest extends PHPUnit_Framework_TestCase
 
         $this->assertEquals($expected, $packet);
     }
+
+    public function testHmacMd5()
+    {
+        $str  = hex2bin('01870082093e4ad125399f8ac4ba6b00ab69a04001066e656d6f04067f0000010506000000145012000000000000000000000000000000001a10000001370b0a740c7921e45e91391a3a00000137013400010000000000000000000000000000000000000000000000004521bd46aebfd2ab3ec21dd6e6bbfa2e4ff325eab720fe37');
+        $hash = hash_hmac('md5', $str, 'xyzzy5461', true);
+
+        $expected = '48a3704ac91e8191497a1f3f213eb338';
+        $actual   = bin2hex($hash);
+
+        $this->assertEquals($expected, $actual);
+    }
+
+    public function testMsChapV1Packet()
+    {
+        $reqId   = 135;
+        $user    = 'nemo';
+        $pass    = 'arctangent123$';
+        $secret  = 'xyzzy5461';
+        $reqAuth = "\x09\x3e\x4a\xd1\x25\x39\x9f\x8a\xc4\xba\x6b\x00\xab\x69\xa0\x40";
+        $nas     = '127.0.0.1';
+        $nasPort = 20;
+        $challenge = "\x74\x0c\x79\x21\xe4\x5e\x91\x39";
+
+        $client = new Radius();
+        $client->setPacketType(Radius::TYPE_ACCESS_REQUEST)
+               ->setRequestId($reqId)
+               ->setRequestAuthenticator($reqAuth)
+               ->setSecret($secret)
+               ->setUsername($user)
+               ->setNasIPAddress($nas)
+               ->setNasPort($nasPort)
+               ->setAttribute(80, str_repeat("\x00", 16))
+               ->setMsChapPassword($pass, $challenge);
+
+        $packet = $client->generateRadiusPacket();
+
+        $packet   = bin2hex($packet);
+        $expected = "01870082093e4ad125399f8ac4ba6b00ab69a04001066e656d6f04067f000001050600000014501248a3704ac91e8191497a1f3f213eb3381a10000001370b0a740c7921e45e91391a3a00000137013400010000000000000000000000000000000000000000000000004521bd46aebfd2ab3ec21dd6e6bbfa2e4ff325eab720fe37";
+
+        $this->assertEquals($expected, $packet);
+    }
 }
