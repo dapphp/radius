@@ -199,7 +199,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
     //function ntPasswordHash($password = null)  // removed for dapphp/radius
     public function ntPasswordHash($password = null)
     {
-        if (isset($password)) {
+        //if (isset($password)) {
+        if (!is_null($password)) {
             return pack('H*',hash('md4', $this->str2unicode($password)));
         } else {
             return pack('H*',hash('md4', $this->str2unicode($this->password)));
@@ -270,7 +271,7 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @return string
      */
     //function _challengeResponse($lm = false)  // removed for dapphp/radius
-    private function _challengeResponse($lm = false)
+    protected function _challengeResponse($lm = false)
     {
         if ($lm) {
             $hash = $this->lmPasswordHash();
