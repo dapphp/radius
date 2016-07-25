@@ -783,7 +783,7 @@ class Radius
         return $conn;
     }
 
-    protected function readRadiusResponse($conn)
+    private function readRadiusResponse($conn)
     {
         stream_set_blocking($conn, false);
         $read    = array($conn);
@@ -986,7 +986,7 @@ class Radius
         return $this->identifierToSend;
     }
 
-    protected function generateRequestAuthenticator()
+    private function generateRequestAuthenticator()
     {
         $this->requestAuthenticator = '';
 
@@ -1033,7 +1033,7 @@ class Radius
         return $this;
     }
 
-    protected function clearError()
+    private function clearError()
     {
         $this->errorCode    = 0;
         $this->errorMessage = '';
@@ -1051,7 +1051,7 @@ class Radius
         }
     }
 
-    protected function decodeAttribute($rawValue, $attributeFormat)
+    private function decodeAttribute($rawValue, $attributeFormat)
     {
         $value = null;
 
