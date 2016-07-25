@@ -232,6 +232,7 @@ class Radius
         $this->attributesInfo[62] = array('Port-Limit', 'I');
         $this->attributesInfo[63] = array('Login-LAT-Port', 'S');
         $this->attributesInfo[76] = array('Prompt', 'I');
+        $this->attributesInfo[79] = array('EAP-Message', 'S');
         $this->attributesInfo[80] = array('Message-Authenticator', 'S');
 
         $this->identifierToSend = -1;
