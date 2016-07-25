@@ -495,6 +495,16 @@ class Radius
         return $this->radiusPacketReceived;
     }
 
+    public function getReceivedAttribute($type)
+    {
+        foreach($this->attributesReceived as $attr) {
+            if ($attr[0] == $type) {
+                return $attr[1];
+            }
+        }
+
+        return null;
+    }
 
     public function getReceivedAttributes()
     {
