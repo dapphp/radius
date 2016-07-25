@@ -698,6 +698,33 @@ class Radius
         }
 
         $packetData = $this->generateRadiusPacket();
+
+        $conn = $this->sendRadiusRequest($packetData);
+        if (!$conn) {
+            return false;
+        }
+
+        $receivedPacket = $this->readRadiusResponse($conn);
+        @fclose($conn);
+
+        if (!$receivedPacket) {
+            return false;
+        }
+
+        if (!$this->parseRadiusResponsePacket($receivedPacket)) {
+            return false;
+        }
+
+        if ($this->radiusPacketReceived == self::TYPE_ACCESS_REJECT) {
+            $this->errorCode    = 3;
+            $this->errorMessage = 'Access rejected';
+        }
+
+        return (self::TYPE_ACCESS_ACCEPT == ($this->radiusPacketReceived));
+    }
+
+    private function sendRadiusRequest($packetData)
+    {
         $packetLen  = strlen($packetData);
 
         $conn = @fsockopen('udp://' . $this->server, $this->authenticationPort, $errno, $errstr);
@@ -743,83 +770,7 @@ class Radius
             }
         }
 
-        $receivedPacket = $this->readRadiusResponse($conn);
-        @fclose($conn);
-
-        if (!$receivedPacket) {
-            return false;
-        }
-
-        $this->radiusPacketReceived = intval(ord(substr($receivedPacket, 0, 1)));
-
-        $this->debugInfo(sprintf(
-            '<b>Packet type %d (%s) received</b>',
-            $this->radiusPacketReceived,
-            $this->getRadiusPacketInfo($this->getResponsePacket())
-        ));
-
-        if ($this->radiusPacketReceived > 0) {
-            $this->identifierReceived = intval(ord(substr($receivedPacket, 1, 1)));
-            $packetLenRx = unpack('n', substr($receivedPacket, 2, 2));
-            $packetLenRx = array_shift($packetLenRx);
-            $this->responseAuthenticator = bin2hex(substr($receivedPacket, 4, 16));
-            if ($packetLenRx > 20) {
-                $attrContent = substr($receivedPacket, 20);
-            } else {
-                $attrContent = '';
-            }
-
-            $authCheck = md5(
-                substr($receivedPacket, 0, 4) .
-                $this->getRequestAuthenticator() .
-                $attrContent .
-                $this->getSecret()
-            );
-
-            if ($authCheck !== $this->responseAuthenticator) {
-                $this->errorCode    = 101;
-                $this->errorMessage = 'Response authenticator in received packet did not match expected value';
-                return false;
-            }
-
-            while (strlen($attrContent) > 2) {
-                $attrType     = intval(ord(substr($attrContent, 0, 1)));
-                $attrLength   = intval(ord(substr($attrContent, 1, 1)));
-                $attrValueRaw = substr($attrContent, 2, $attrLength - 2);
-                $attrContent  = substr($attrContent, $attrLength);
-                $attrValue    = $this->decodeAttribute($attrValueRaw, $attrType);
-
-                $attr = $this->getAttributesInfo($attrType);
-                if (26 == $attrType) {
-                    $vendorArr = $this->decodeVendorSpecificContent($attrValue);
-                    foreach($vendorArr as $vendor) {
-                        $this->debugInfo(
-                            sprintf(
-                                'Attribute %d (%s), length %d, format %s, Vendor-Id: %d, Vendor-type: %s, Attribute-specific: %s',
-                                $attrType, $attr[0], $attrLength - 2,
-                                $attr[1], $vendor[0], $vendor[1], $vendor[2]
-                            )
-                        );
-                    }
-                } else {
-                    $this->debugInfo(
-                        sprintf(
-                            'Attribute %d (%s), length %d, format %s, value <em>%s</em>',
-                            $attrType, $attr[0], $attrLength - 2, $attr[1], $attrValue
-                        )
-                    );
-                }
-
-                $this->attributesReceived[] = array($attrType, $attrValue);
-            }
-        }
-
-        if ($this->radiusPacketReceived == self::TYPE_ACCESS_REJECT) {
-            $this->errorCode    = 3;
-            $this->errorMessage = 'Access rejected';
-        }
-
-        return (self::TYPE_ACCESS_ACCEPT == ($this->radiusPacketReceived));
+        return $conn;
     }
 
     protected function readRadiusResponse($conn)
@@ -888,6 +839,81 @@ class Radius
         } while ($elapsed < $this->timeout && strlen($receivedPacket) < $packetLen);
 
         return $receivedPacket;
+    }
+
+    private function parseRadiusResponsePacket($packet)
+    {
+        $this->radiusPacketReceived = intval(ord(substr($packet, 0, 1)));
+
+        $this->debugInfo(sprintf(
+            '<b>Packet type %d (%s) received</b>',
+            $this->radiusPacketReceived,
+            $this->getRadiusPacketInfo($this->getResponsePacket())
+        ));
+
+        if ($this->radiusPacketReceived > 0) {
+            $this->identifierReceived = intval(ord(substr($packet, 1, 1)));
+            $packetLenRx = unpack('n', substr($packet, 2, 2));
+            $packetLenRx = array_shift($packetLenRx);
+            $this->responseAuthenticator = bin2hex(substr($packet, 4, 16));
+            if ($packetLenRx > 20) {
+                $attrContent = substr($packet, 20);
+            } else {
+                $attrContent = '';
+            }
+
+            $authCheck = md5(
+                substr($packet, 0, 4) .
+                $this->getRequestAuthenticator() .
+                $attrContent .
+                $this->getSecret()
+            );
+
+            if ($authCheck !== $this->responseAuthenticator) {
+                $this->errorCode    = 101;
+                $this->errorMessage = 'Response authenticator in received packet did not match expected value';
+                return false;
+            }
+
+            while (strlen($attrContent) > 2) {
+                $attrType     = intval(ord(substr($attrContent, 0, 1)));
+                $attrLength   = intval(ord(substr($attrContent, 1, 1)));
+                $attrValueRaw = substr($attrContent, 2, $attrLength - 2);
+                $attrContent  = substr($attrContent, $attrLength);
+                $attrValue    = $this->decodeAttribute($attrValueRaw, $attrType);
+
+                $attr = $this->getAttributesInfo($attrType);
+                if (26 == $attrType) {
+                    $vendorArr = $this->decodeVendorSpecificContent($attrValue);
+                    foreach($vendorArr as $vendor) {
+                        $this->debugInfo(
+                            sprintf(
+                                'Attribute %d (%s), length %d, format %s, Vendor-Id: %d, Vendor-type: %s, Attribute-specific: %s',
+                                $attrType, $attr[0], $attrLength - 2,
+                                $attr[1], $vendor[0], $vendor[1], $vendor[2]
+                            )
+                        );
+                    }
+                } else {
+                    $this->debugInfo(
+                        sprintf(
+                            'Attribute %d (%s), length %d, format %s, value <em>%s</em>',
+                            $attrType, $attr[0], $attrLength - 2, $attr[1], $attrValue
+                        )
+                    );
+                }
+
+                // TODO: check message authenticator
+
+                $this->attributesReceived[] = array($attrType, $attrValue);
+            }
+        } else {
+            $this->errorCode    = 100;
+            $this->errorMessage = 'Invalid response packet received';
+            return false;
+        }
+
+        return true;
     }
 
     public function generateRadiusPacket()
