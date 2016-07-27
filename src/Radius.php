@@ -361,6 +361,17 @@ class Radius
         return $encryptedPassword;
     }
 
+    public function setIncludeMessageAuthenticator($include = true)
+    {
+        if ($include) {
+            $this->setAttribute(80, str_repeat("\x00", 16));
+        } else {
+            $this->removeAttribute(80);
+        }
+
+        return $this;
+    }
+
     public function setChapId($nextId)
     {
         $this->chapIdentifier = (int)$nextId;
@@ -407,7 +418,7 @@ class Radius
 
         $response = "\x00\x01" . str_repeat ("\0", 24) . $chap->ntChallengeResponse();
 
-        $this->setAttribute(80, str_repeat("\x00", 16)); // message authenticator (all 0's)
+        $this->setIncludeMessageAuthenticator();
         $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 11, $chap->challenge);
         $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 1, $response);
 
@@ -542,10 +553,12 @@ class Radius
     {
         $value = null;
 
-        foreach($this->attributesReceived as $attr) {
-            if (intval($type) == $attr[0]) {
-                $value = $attr;
-                break;
+        if (is_array($this->attributesReceived)) {
+            foreach($this->attributesReceived as $attr) {
+                if (intval($type) == $attr[0]) {
+                    $value = $attr;
+                    break;
+                }
             }
         }
 
@@ -573,15 +586,17 @@ class Radius
     public function setAttribute($type, $value)
     {
         $index = -1;
-        for ($i = 0; $i < count($this->attributesToSend); ++$i) {
-            if (is_array($this->attributesToSend[$i])) {
-                $tmp = $this->attributesToSend[$i][0];
-            } else {
-                $tmp = $this->attributesToSend[$i];
-            }
-            if ($type == ord(substr($tmp, 0, 1))) {
-                $index = $i;
-                break;
+        if (is_array($this->attributesToSend)) {
+            foreach($this->attributesToSend as $i => $attr) {
+                if (is_array($attr)) {
+                    $tmp = $attr[0];
+                } else {
+                    $tmp = $attr;
+                }
+                if ($type == ord(substr($tmp, 0, 1))) {
+                    $index = $i;
+                    break;
+                }
             }
         }
 
@@ -638,6 +653,35 @@ class Radius
         return $this;
     }
 
+    /**
+     * Get one or all set attributes to send
+     *
+     * @param int|null $type  RADIUS attribute type, or null for all
+     * @return mixed array of attributes to send, or null if specific attribute not found, or
+     */
+    public function getAttributesToSend($type = null)
+    {
+        if (is_array($this->attributesToSend)) {
+            if ($type == null) {
+                return $this->attributesToSend;
+            } else {
+                foreach($this->attributesToSend as $i => $attr) {
+                    if (is_array($attr)) {
+                        $tmp = $attr[0];
+                    } else {
+                        $tmp = $attr;
+                    }
+                    if ($type == ord(substr($tmp, 0, 1))) {
+                        return $this->decodeAttribute(substr($tmp, 2), $type);
+                    }
+                }
+                return null;
+            }
+        }
+
+        return array();
+    }
+
     public function setVendorSpecificAttribute($vendorId, $attributeType, $attributeValue)
     {
         $data  = pack('N', $vendorId);
@@ -650,6 +694,26 @@ class Radius
         return $this;
     }
 
+    public function removeAttribute($type)
+    {
+        $index = -1;
+        if (is_array($this->attributesToSend)) {
+            foreach($this->attributesToSend as $i => $attr) {
+                if (is_array($attr)) {
+                    $tmp = $attr[0];
+                } else {
+                    $tmp = $attr;
+                }
+                if ($type == ord(substr($tmp, 0, 1))) {
+                    unset($this->attributesToSend[$i]);
+                    break;
+                }
+            }
+        }
+
+        return $this;
+    }
+
     public function resetAttributes()
     {
         $this->attributesToSend = null;
@@ -658,7 +722,7 @@ class Radius
 
     public function resetVendorSpecificAttributes()
     {
-        $this->attributesToSend[26] = array();
+        $this->removeAttribute(26);
 
         return $this;
     }
@@ -933,20 +997,20 @@ class Radius
         $attrContent = '';
         $len         = 0;
         $offset      = null;
-        for ($i = 0; $i < count($this->attributesToSend); ++$i) {
+        foreach($this->attributesToSend as $i => $attr) {
             $len = strlen($attrContent);
 
-            if (is_array($this->attributesToSend[$i])) {
+            if (is_array($attr)) {
                 // vendor specific (could have multiple attributes)
-                $attrContent .= implode('', $this->attributesToSend[$i]);
+                $attrContent .= implode('', $attr);
             } else {
-                if (ord($this->attributesToSend[$i][0]) == 80) {
+                if (ord($attr[0]) == 80) {
                     // If Message-Authenticator is set, note offset so it can be updated
                     $hasAuthenticator = true;
                     $offset = $len + 2; // current length + type(1) + length(1)
                 }
 
-                $attrContent .= $this->attributesToSend[$i];
+                $attrContent .= $attr;
             }
         }
 
