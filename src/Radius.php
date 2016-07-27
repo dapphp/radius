@@ -404,9 +404,6 @@ class Radius
 
     public function setMsChapPassword($password, $challenge = null)
     {
-        require_once __DIR__ . '/../lib/Pear_CHAP.php';
-        require_once __DIR__ . '/VendorId.php';
-
         $chap = new \Crypt_CHAP_MSv1();
         $chap->chapid   = mt_rand(1, 255);
         $chap->password = $password;

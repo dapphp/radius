@@ -7,7 +7,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-require_once __DIR__ . '/../src/Radius.php';
+require_once __DIR__ . '/../autoload.php';
 
 $radius = new \Dapphp\Radius\Radius();
 $radius->setServer('127.0.0.1')        // IP or hostname of RADIUS server
