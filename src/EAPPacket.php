@@ -70,6 +70,8 @@ class EAPPacket
      */
     public static function fromString($packet)
     {
+        // TODO: validate incoming packet better
+
         $p = new self();
         $p->code = ord($packet[0]);
         $p->id   = ord($packet[1]);
