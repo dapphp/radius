@@ -1,9 +1,72 @@
 <?php
 
 use Dapphp\Radius\Radius;
+use Dapphp\Radius\EAPPacket;
+use Dapphp\Radius\MsChapV2Packet;
+use Dapphp\Radius\VendorId;
 
 class ClientTest extends PHPUnit_Framework_TestCase
 {
+    public function testAttributes()
+    {
+        $client = new Radius();
+
+        // string value test
+        $test   = 'this is a test';
+
+        $client->setAttribute(80, $test);
+        $attr   = $client->getAttributesToSend(80);
+        $this->assertEquals($test, $attr);
+
+        $client->removeAttribute(80);
+        $attr   = $client->getAttributesToSend(80);
+        $this->assertEquals(null, $attr);
+
+        // integer value test
+        $nasPort = 32768;
+
+        $client->setAttribute(5, $nasPort);
+        $attr   = $client->getAttributesToSend(5);
+        $this->assertEquals($nasPort, $attr);
+
+        $client->removeAttribute(5);
+        $attr   = $client->getAttributesToSend(5);
+        $this->assertEquals(null, $attr);
+    }
+
+    public function testGetAttributes()
+    {
+        $client   = new Radius();
+        $username = 'LinusX2@arpa.net';
+        $nasIp    = '192.168.88.1';
+        $nasPort  = 64000;
+
+        $expected = ''; // manually constructed hex string
+        $expected .= chr(1); // username
+        $expected .= chr(2 + strlen($username)); // length
+        $expected .= $username;
+
+        $expected .= chr(4); // nas ip
+        $expected .= chr(6);
+        $expected .= pack('N', ip2long($nasIp));
+
+        $expected .= chr(5); // nas port
+        $expected .= chr(6);
+        $expected .= pack('N', $nasPort);
+
+
+        $client->setUsername($username)
+               ->setNasIPAddress($nasIp)
+               ->setNasPort($nasPort);
+
+        $actual = implode('', $client->getAttributesToSend());
+
+        $this->assertEquals($expected, $actual);
+        $this->assertEquals($username, $client->getAttributesToSend(1));
+        $this->assertEquals($nasIp, $client->getAttributesToSend(4));
+        $this->assertEquals($nasPort, $client->getAttributesToSend(5));
+    }
+
     public function testEncryptedPassword()
     {
         $pass   = 'arctangent';
@@ -38,7 +101,7 @@ class ClientTest extends PHPUnit_Framework_TestCase
         $nas     = '192.168.1.16';
         $nasPort = 3;
 
-        $client   = new Radius();
+        $client  = new Radius();
 
         $client->setRequestAuthenticator("\x0f\x40\x3f\x94\x73\x97\x80\x57\xbd\x83\xd5\xcb\x98\xf4\x22\x7a");
 
@@ -114,7 +177,7 @@ class ClientTest extends PHPUnit_Framework_TestCase
 
         $client = new Radius();
         $client->setPacketType(Radius::TYPE_ACCESS_REQUEST)
-               ->setRequestId($reqId)
+               ->setNextIdentifier($reqId)
                ->setRequestAuthenticator($reqAuth)
                ->setSecret($secret)
                ->setUsername($user)
@@ -129,5 +192,64 @@ class ClientTest extends PHPUnit_Framework_TestCase
         $expected = "01870082093e4ad125399f8ac4ba6b00ab69a04001066e656d6f04067f000001050600000014501248a3704ac91e8191497a1f3f213eb3381a10000001370b0a740c7921e45e91391a3a00000137013400010000000000000000000000000000000000000000000000004521bd46aebfd2ab3ec21dd6e6bbfa2e4ff325eab720fe37";
 
         $this->assertEquals($expected, $packet);
+    }
+
+    public function testEapPacketBasic()
+    {
+        $p       = new EAPPacket();
+        $p->code = EAPPacket::CODE_REQUEST;
+        $p->id   = 111;
+        $p->type = EAPPacket::TYPE_IDENTITY;
+        $p->data = 'here is some data';
+
+        $expected = "016f0016016865726520697320736f6d652064617461";
+
+        $this->assertEquals($expected, bin2hex($p->__toString()));
+
+        $parsed = EAPPacket::fromString($p->__toString());
+
+        $this->assertEquals(EAPPacket::CODE_REQUEST, $parsed->code);
+        $this->assertEquals(111, $parsed->id);
+        $this->assertEquals(EAPPacket::TYPE_IDENTITY, $parsed->type);
+        $this->assertEquals($p->data, $parsed->data);
+
+        $p2 = new EAPPacket();
+        $p2->code = EAPPacket::CODE_RESPONSE;
+        $p2->id   = 128;
+        $p2->type = EAPPacket::TYPE_NOTIFICATION;
+        $p2->data = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x99\x98\x97\x96\x95\x94\x93\x92\x91\x90";
+
+        $p3 = EAPPacket::fromString($p2->__toString());
+
+        $this->assertEquals(EAPPacket::CODE_RESPONSE, $p3->code);
+        $this->assertEquals(128, $p3->id);
+        $this->assertEquals(2, $p3->type);
+        $this->assertEquals("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x99\x98\x97\x96\x95\x94\x93\x92\x91\x90", $p3->data);
+    }
+
+    public function testEapMsChapV2()
+    {
+        $server = getenv('RADIUS_SERVER_ADDR');
+        $user   = getenv('RADIUS_USER');
+        $pass   = getenv('RADIUS_PASS');
+        $secret = getenv('RADIUS_SECRET');
+
+        if (!$server) {
+            $this->markTestSkipped('RADIUS_SERVER_ADDR environment variable not set');
+        } elseif (!$user) {
+            $this->markTestSkipped('RADIUS_USER environment variable not set');
+        } elseif (!$pass) {
+            $this->markTestSkipped('RADIUS_PASS environment variable not set');
+        } elseif (!$secret) {
+            $this->markTestSkipped('RADIUS_SECRET environment variable not set');
+        }
+
+        $client = new Radius();
+        $client->setServer($server)
+               ->setSecret($secret);
+
+        $success = $client->accessRequestEapMsChapV2($user, $pass);
+
+        $this->assertTrue($success);
     }
 }
