@@ -52,7 +52,7 @@
  * @since CreationDate: 2008-01-04
  * @copyright (c) 2008 by SysCo systemes de communication sa
  * @copyright (c) 2016 by Drew Phillips
- * @version 2.0.0
+ * @version 2.5.0
  * @link http://developer.sysco.ch/php/
  * @link developer@sysco.ch
  * @link https://github.com/dapphp/radius
@@ -504,15 +504,15 @@ class Radius
         return $this->radiusPacketReceived;
     }
 
+    /**
+     * Alias of Radius::getAttribute()
+     *
+     * @param unknown $type
+     * @return NULL|unknown
+     */
     public function getReceivedAttribute($type)
     {
-        foreach($this->attributesReceived as $attr) {
-            if ($attr[0] == $type) {
-                return $attr[1];
-            }
-        }
-
-        return null;
+        return $this->getAttribute($type);
     }
 
     public function getReceivedAttributes()
