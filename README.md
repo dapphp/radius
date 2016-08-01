@@ -1,6 +1,6 @@
 ## Name:
 
-**Dapphp\Radius** - A pure PHP RADIUS client based on the SysCo/al implementation 
+**Dapphp\Radius** - A pure PHP RADIUS client based on the SysCo/al implementation
 
 ## Version:
 
@@ -48,65 +48,65 @@ and credentials to test).
 
 ## Synopsis:
 
-<?php
+	<?php
 
-use Dapphp\Radius\Radius;
+	use Dapphp\Radius\Radius;
 
-require_once '/path/to/radius/autoload.php';
-// or, if using composer
-require_once '/path/to/vendor/autoload.php';
+	require_once '/path/to/radius/autoload.php';
+	// or, if using composer
+	require_once '/path/to/vendor/autoload.php';
 
-$client = new Radius();
+	$client = new Radius();
 
-// set server, secret, and basic attributes
-$client->setServer('12.34.56.78') // RADIUS server address
-       ->setSecret('radius shared secret')
-       ->setNasIpAddress('10.0.1.2') // NAS server address
-       ->setAttribute(32, 'login');  // NAS identifier
-       
-// PAP authentication; returns true if successful, false otherwise
-$authenticated = $client->accessRequest($username, $password);
+	// set server, secret, and basic attributes
+	$client->setServer('12.34.56.78') // RADIUS server address
+	       ->setSecret('radius shared secret')
+	       ->setNasIpAddress('10.0.1.2') // NAS server address
+	       ->setAttribute(32, 'login');  // NAS identifier
 
-// CHAP-MD5 authentication
-$client->setChapPassword($password); // set chap password
-$authenticated = $client->accessRequest($username); // authenticate, don't specify pw here
+	// PAP authentication; returns true if successful, false otherwise
+	$authenticated = $client->accessRequest($username, $password);
 
-// MSCHAP v1 authentication
-$client->setMSChapPassword($password); // set ms chap password (uses mcrypt)
-$authenticated = $client->accessRequest($username);
+	// CHAP-MD5 authentication
+	$client->setChapPassword($password); // set chap password
+	$authenticated = $client->accessRequest($username); // authenticate, don't specify pw here
 
-// EAP-MSCHAP v2 authentication
-$authenticated = $client->accessRequestEapMsChapV2($username, $password);
+	// MSCHAP v1 authentication
+	$client->setMSChapPassword($password); // set ms chap password (uses mcrypt)
+	$authenticated = $client->accessRequest($username);
 
-if ($authenticated === false) {
-    // false returned on failure
-    echo sprintf(
-        "Access-Request failed with error %d (%s).\n",
-        $client->getErrorCode(),
-        $client->getErrorMessage()
-    );
-} else {
-    // access request was accepted - client authenticated successfully
-    echo "Success!  Received Access-Accept response from RADIUS server.\n";
-}
+	// EAP-MSCHAP v2 authentication
+	$authenticated = $client->accessRequestEapMsChapV2($username, $password);
+
+	if ($authenticated === false) {
+	    // false returned on failure
+	    echo sprintf(
+	        "Access-Request failed with error %d (%s).\n",
+	        $client->getErrorCode(),
+	        $client->getErrorMessage()
+	    );
+	} else {
+	    // access request was accepted - client authenticated successfully
+	    echo "Success!  Received Access-Accept response from RADIUS server.\n";
+	}
 
 ## Advanced Usage:
 
-// Setting vendor specific attributes
-// Many vendor IDs are available in \Dapphp\Radius\VendorId
-// e.g. \Dapphp\Radius\VendorId::MICROSOFT
-$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $rawValue);
+	// Setting vendor specific attributes
+	// Many vendor IDs are available in \Dapphp\Radius\VendorId
+	// e.g. \Dapphp\Radius\VendorId::MICROSOFT
+	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $rawValue);
 
-// Retrieving attributes from RADIUS responses after receiving a failure or success response
-$value = $client->getAttribute($attributeId);
+	// Retrieving attributes from RADIUS responses after receiving a failure or success response
+	$value = $client->getAttribute($attributeId);
 
-// Get an array of all received attributes
-$attributes = getReceivedAttributes();
+	// Get an array of all received attributes
+	$attributes = getReceivedAttributes();
 
-// Debugging
-// Prior to sending a request, call
-$client->setDebug(true); // enable debug output on console
-// Shows what attributes are sent and received, and info about the request/response
+	// Debugging
+	// Prior to sending a request, call
+	$client->setDebug(true); // enable debug output on console
+	// Shows what attributes are sent and received, and info about the request/response
 
 
 ## TODO:
