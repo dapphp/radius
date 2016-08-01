@@ -8,8 +8,8 @@
 
 ## Author:
 
-Drew Phillips <drew@drew-phillips.com>
-SysCo/al <developer@sysco.ch> (http://developer.sysco.ch/php/)
+* Drew Phillips <drew@drew-phillips.com>
+* SysCo/al <developer@sysco.ch> (http://developer.sysco.ch/php/)
 
 ## Requirements:
 
@@ -20,11 +20,20 @@ SysCo/al <developer@sysco.ch> (http://developer.sysco.ch/php/)
 **Dapphp\Radius** is a pure PHP RADIUS client for authenticating users against
 a RADIUS server in PHP.  It currently supports basic RADIUS auth using PAP,
 CHAP (MD5), MSCHAP v1, and EAP-MSCHAP v2.  The current 2.5.x branch is tested
-to work with Microsoft Windows Server 2012 Network Policy Server and FreeRADIUS
-2 and above and most likely works with other RADIUS server implementations.
-PAP authentication has been tested on Microsoft Radius server IAS, Mideye
-RADIUS Server, Radl, RSA SecurID, VASCO Middleware 3.0 server, WinRadius, and
-ZyXEL ZyWALL OTP.
+to work with the following RADIUS servers:
+
+- Microsoft Windows Server 2012 Network Policy Server
+- FreeRADIUS 2 and above
+
+PAP authentication has been tested on:
+
+- Microsoft Radius server IAS
+- Mideye RADIUS Server
+- Radl
+- RSA SecurID
+- VASCO Middleware 3.0 server
+- WinRadius
+- ZyXEL ZyWALL OTP
 
 The PHP mcrypt extension is required if using MSCHAP v1 or v2.
 
