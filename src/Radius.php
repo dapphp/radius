@@ -598,6 +598,12 @@ class Radius
         }
 
         $temp = null;
+        
+        // In some case, the value is an array structured like this :
+        //   $packet[0] = <attribute ID>
+        //   $packed[1] = <data>
+        if(is_array($value))
+            $value = $value[1];
 
         if (isset($this->attributesInfo[$type])) {
             switch ($this->attributesInfo[$type][1]) {
