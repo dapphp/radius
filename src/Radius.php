@@ -553,7 +553,7 @@ class Radius
         if (is_array($this->attributesReceived)) {
             foreach($this->attributesReceived as $attr) {
                 if (intval($type) == $attr[0]) {
-                    $value = $attr;
+                    $value = $attr[1];
                     break;
                 }
             }
