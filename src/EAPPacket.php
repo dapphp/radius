@@ -72,6 +72,12 @@ class EAPPacket
     {
         // TODO: validate incoming packet better
 
+        // In some case, the packet is an array structured like this :
+        //   $packet[0] = <attribute ID>
+        //   $packed[1] = <data>
+        if(is_array($packet))
+            $packet = $packet[1];
+
         $p = new self();
         $p->code = ord($packet[0]);
         $p->id   = ord($packet[1]);
