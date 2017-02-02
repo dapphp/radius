@@ -11,6 +11,7 @@
  *  - Authenex Strong Authentication System (ASAS) with two-factor authentication
  *  - FreeRADIUS, a free Radius server implementation for Linux and *nix environments
  *  - Microsoft Radius server IAS
+ *  - Microsoft Windows Server 2016 (Network Policy Server)
  *  - Microsoft Windows Server 2012 R2 (Network Policy Server)
  *  - Mideye RADIUS server (http://www.mideye.com)
  *  - Radl, a free Radius server for Windows
@@ -52,7 +53,7 @@
  * @since CreationDate: 2008-01-04
  * @copyright (c) 2008 by SysCo systemes de communication sa
  * @copyright (c) 2016 by Drew Phillips
- * @version 2.5.0
+ * @version 2.5.1
  * @link http://developer.sysco.ch/php/
  * @link developer@sysco.ch
  * @link https://github.com/dapphp/radius
