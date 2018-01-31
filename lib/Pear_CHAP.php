@@ -32,8 +32,13 @@ any other GPL-like (LGPL, GPL2) License.
     $Id: CHAP.php 302857 2010-08-28 21:12:59Z mbretter $
 
 This version of CHAP.php has been modified by Drew Phillips for dapphp/radius.
-Modifications remove the PEAR dependency, change from PHP4 OOP to PHP5, and...
+Modifications remove the PEAR dependency, change from PHP4 OOP to PHP5, and
+mcrypt functions have been replaced with openssl_* functions.
+
 Changes are all commented inline throughout the source.
+
+    $Id: Pear_CHAP.php 2.5.2 2018-01-25  03:30:29Z dapphp $
+
 */
 
 // require_once 'PEAR.php'; // removed for dapphp/radius
@@ -47,7 +52,6 @@ Changes are all commented inline throughout the source.
 * @package Crypt_CHAP
 * @author  Michael Bretterklieber <michael@bretterklieber.com>
 * @access  public
-* @version $Revision: 302857 $
 */
 
 /**
@@ -188,6 +192,11 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
         // removed for dapphp/radius
         //$this->Crypt_CHAP();
         //$this->loadExtension('hash');
+
+        // added openssl & mcrypt check for dapphp/radius
+        if (!extension_loaded('openssl') && !extension_loaded('mcrypt')) {
+            throw new \Exception("openssl and mcrypt are not installed; cannot use Radius MSCHAP functions");
+        }
     }
 
     /**
@@ -279,27 +288,37 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
             $hash = $this->ntPasswordHash();
         }
 
-        while (strlen($hash) < 21) {
-            $hash .= "\0";
+        $hash = str_pad($hash, 21, "\0");
+
+        if (extension_loaded('openssl')) {
+            // added openssl routines for dapphp/radius
+            $key   = $this->_desAddParity(substr($hash, 0, 7));
+            $resp1 = openssl_encrypt($this->challenge, 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+
+            $key   = $this->_desAddParity(substr($hash, 7, 7));
+            $resp2 = openssl_encrypt($this->challenge, 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+
+            $key   = $this->_desAddParity(substr($hash, 14, 7));
+            $resp3 = openssl_encrypt($this->challenge, 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+        } else {
+            $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
+            $iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
+            $key = $this->_desAddParity(substr($hash, 0, 7));
+            mcrypt_generic_init($td, $key, $iv);
+            $resp1 = mcrypt_generic($td, $this->challenge);
+            mcrypt_generic_deinit($td);
+
+            $key = $this->_desAddParity(substr($hash, 7, 7));
+            mcrypt_generic_init($td, $key, $iv);
+            $resp2 = mcrypt_generic($td, $this->challenge);
+            mcrypt_generic_deinit($td);
+
+            $key = $this->_desAddParity(substr($hash, 14, 7));
+            mcrypt_generic_init($td, $key, $iv);
+            $resp3 = mcrypt_generic($td, $this->challenge);
+            mcrypt_generic_deinit($td);
+            mcrypt_module_close($td);
         }
-
-        $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
-        $iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
-        $key = $this->_desAddParity(substr($hash, 0, 7));
-        mcrypt_generic_init($td, $key, $iv);
-        $resp1 = mcrypt_generic($td, $this->challenge);
-        mcrypt_generic_deinit($td);
-
-        $key = $this->_desAddParity(substr($hash, 7, 7));
-        mcrypt_generic_init($td, $key, $iv);
-        $resp2 = mcrypt_generic($td, $this->challenge);
-        mcrypt_generic_deinit($td);
-
-        $key = $this->_desAddParity(substr($hash, 14, 7));
-        mcrypt_generic_init($td, $key, $iv);
-        $resp3 = mcrypt_generic($td, $this->challenge);
-        mcrypt_generic_deinit($td);
-        mcrypt_module_close($td);
 
         return $resp1 . $resp2 . $resp3;
     }
@@ -332,14 +351,23 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
     //function _desHash($plain)  // removed for dapphp/radius
     private function _desHash($plain)
     {
-        $key = $this->_desAddParity($plain);
-        $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
-        $iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
-        mcrypt_generic_init($td, $key, $iv);
-        $hash = mcrypt_generic($td, 'KGS!@#$%');
-        mcrypt_generic_deinit($td);
-        mcrypt_module_close($td);
-        return $hash;
+        if (extension_loaded('openssl')) {
+            // added openssl routines for dapphp/radius
+            $key = $this->_desAddParity($plain);
+            $hash = openssl_encrypt('KGS!@#$%', 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+
+            return $hash;
+        } else {
+            $key = $this->_desAddParity($plain);
+            $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
+            $iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
+            mcrypt_generic_init($td, $key, $iv);
+            $hash = mcrypt_generic($td, 'KGS!@#$%');
+            mcrypt_generic_deinit($td);
+            mcrypt_module_close($td);
+
+            return $hash;
+        }
     }
 
     /**
