@@ -93,6 +93,36 @@ class ClientTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($expected, $encrypted);
     }
 
+    public function testCryptCHAPMSv1()
+    {
+        $pass = "Don't forget to bring a passphrase!";
+
+        $chap            = new \Crypt_CHAP_MSv1();
+        $chap->password  = $pass;
+        $chap->chapid    = 42;
+        $chap->challenge = "\x6c\x7e\x0d\xba\xe3\x81\xea\x51";
+
+        $response = $chap->ntChallengeResponse();
+
+        $this->assertEquals('5f169b7d8176516f8092bce99008e097febfed2f043ec04e', bin2hex($response));
+    }
+
+    public function testCryptCHAPMSv2()
+    {
+        $pass = 'Passwords < Passphrases < $whatsNext?';
+
+        $chap = new \Crypt_CHAP_MSv2();
+        $chap->username      = 'nemo';
+        $chap->password      = $pass;
+        $chap->chapid        = 37;
+        $chap->authChallenge = "\x01\x23\x45\x67\x89\xAB\xCD\xEF\xFE\xDC\xBA\x98\x76\x54\x32\x10";
+        $chap->peerChallenge = "\x93\xa8\x14\xc3\x90\x4e\x67\xcc\xb1\xd2\x72\x23\xd5\xf3\x90\xae";
+
+        $response = $chap->challengeResponse();
+
+        $this->assertEquals('a3d12ce2f52d13fe04421205a2ce17b0e559ea8a9e594c1c', bin2hex($response));
+    }
+
     public function testAuthenticationPacket()
     {
         $user    = 'nemo';
