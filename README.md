@@ -2,10 +2,6 @@
 
 **Dapphp\Radius** - A pure PHP RADIUS client based on the SysCo/al implementation
 
-## Version:
-
-**2.5.1**
-
 ## Author:
 
 * Drew Phillips <drew@drew-phillips.com>
