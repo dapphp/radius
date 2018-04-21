@@ -43,15 +43,6 @@ Changes are all commented inline throughout the source.
 
 // require_once 'PEAR.php'; // removed for dapphp/radius
 
-if (!defined('OPENSSL_RAW_DATA')) {
-    // added for dapphp/radius
-    define('OPENSSL_RAW_DATA', 1);
-}
-if (!defined('OPENSSL_ZERO_PADDING')) {
-    // added for dapphp/radius
-    define('OPENSSL_ZERO_PADDING', 2);
-}
-
 /**
 * Classes for generating packets for various CHAP Protocols:
 * CHAP-MD5: RFC1994
@@ -205,6 +196,13 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
         // added openssl & mcrypt check for dapphp/radius
         if (!extension_loaded('openssl') && !extension_loaded('mcrypt')) {
             throw new \Exception("openssl and mcrypt are not installed; cannot use Radius MSCHAP functions");
+        }
+
+        // Added mcrypt check for PHP 5.3 for dapphp/radius
+        // OPENSSL_RAW_DATA and OPENSSL_ZERO_PADDING are required but not
+        // supported by ext/openssl until PHP 5.4.
+        if (version_compare(PHP_VERSION, '5.4') && !extension_loaded('mcrypt')) {
+            throw new \Exception("Radius MSCHAP functions require mcrypt extension for PHP 5.3");
         }
     }
 
