@@ -17,3 +17,6 @@ matrix:
     - php: 7.2
       dist: trusty
 
+script:
+    - vendor/bin/phpunit
+
