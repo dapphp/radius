@@ -1033,6 +1033,12 @@ class Radius
 
         $conn = $this->sendRadiusRequest($packetData);
         if (!$conn) {
+            $this->debugInfo(sprintf(
+                'Failed to send packet to %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
             return false;
         }
 
@@ -1040,10 +1046,22 @@ class Radius
         @fclose($conn);
 
         if (!$receivedPacket) {
+            $this->debugInfo(sprintf(
+                'Error receiving response packet from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
             return false;
         }
 
         if (!$this->parseRadiusResponsePacket($receivedPacket)) {
+            $this->debugInfo(sprintf(
+                'Bad RADIUS response from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
             return false;
         }
 
@@ -1261,9 +1279,10 @@ class Radius
         if ($this->debug) {
             $this->debugInfo(
                 sprintf(
-                    '<b>Packet type %d (%s) sent</b>',
+                    '<b>Packet type %d (%s) sent to %s</b>',
                     $this->radiusPacket,
-                    $this->getRadiusPacketInfo($this->radiusPacket)
+                    $this->getRadiusPacketInfo($this->radiusPacket),
+                    $this->server
                 )
             );
             foreach($this->attributesToSend as $attrs) {
@@ -1592,9 +1611,15 @@ class Radius
     protected function debugInfo($message)
     {
         if ($this->debug) {
-            echo date('Y-m-d H:i:s').' DEBUG: ';
-            echo $message;
-            echo "<br />\n";
+            $msg = date('Y-m-d H:i:s'). ' DEBUG: ';
+            $msg .= $message;
+            $msg .= "<br>\n";
+
+            if (php_sapi_name() == 'cli') {
+                $msg = strip_tags($msg);
+            }
+
+            echo $msg;
             flush();
         }
     }
