@@ -201,7 +201,7 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
         // Added mcrypt check for PHP 5.3 for dapphp/radius
         // OPENSSL_RAW_DATA and OPENSSL_ZERO_PADDING are required but not
         // supported by ext/openssl until PHP 5.4.
-        if (version_compare(PHP_VERSION, '5.4') && !extension_loaded('mcrypt')) {
+        if (version_compare(PHP_VERSION, '5.4') < 0 && !extension_loaded('mcrypt')) {
             throw new \Exception("Radius MSCHAP functions require mcrypt extension for PHP 5.3");
         }
     }
