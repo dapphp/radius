@@ -43,6 +43,11 @@ Changes are all commented inline throughout the source.
 
 // require_once 'PEAR.php'; // removed for dapphp/radius
 
+if (!defined('OPENSSL_RAW_DATA')) {
+    // added for dapphp/radius
+    define('OPENSSL_RAW_DATA', 1);
+}
+
 /**
 * Classes for generating packets for various CHAP Protocols:
 * CHAP-MD5: RFC1994
