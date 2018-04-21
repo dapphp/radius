@@ -1074,6 +1074,51 @@ class Radius
     }
 
     /**
+     * Perform an accessRequest against a list of servers.  Each server must
+     * share the same RADIUS secret.  This is useful if you have more than one
+     * RADIUS server.  This function tries each server until it receives an
+     * Access-Accept or Access-Reject response.  That is, it will try more than
+     * one server in the event of a timeout or other failure.
+     *
+     * @see \Dapphp\Radius\Radius::accessRequest()
+     *
+     * @param array  $serverList  Array of servers to authenticate against
+     * @param string $username    Username to authenticate as
+     * @param string $password    Password to authenticate with using PAP
+     * @param number $timeout     The timeout (in seconds) to wait for a response packet
+     * @param string $state       The state of the request (default is Service-Type=1)
+     *
+     * @return boolean true if the server sent an Access-Accept packet, false otherwise
+     */
+    public function accessRequestList($serverList, $username = '', $password = '', $timeout = 0, $state = null)
+    {
+        if (!is_array($serverList)) {
+            $this->errorCode    = 127;
+            $this->errorMessage = sprintf(
+                'server list passed to accessRequestl must be array; %s given', gettype($serverList)
+                );
+
+            return false;
+        }
+
+        foreach($serverList as $server) {
+            $this->setServer($server);
+
+            $result = $this->accessRequest($username, $password, $timeout, $state);
+
+            if ($result === true) {
+                break; // success
+            } elseif ($this->getErrorCode() === self::TYPE_ACCESS_REJECT) {
+                break; // access rejected
+            } else {
+                /* timeout or other possible transient error; try next host */
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Authenticate using EAP-MSCHAP v2.  This is a 4-way authentication
      * process that sends an Access-Request, receives an Access-Challenge,
      * responsds with an Access-Request, and finally sends an Access-Request with
@@ -1250,6 +1295,46 @@ class Radius
         } else {
             return true;
         }
+    }
+
+    /**
+     * Perform a EAP-MSCHAP v2 4-way authentication against a list of servers.
+     * Each server must share the same RADIUS secret.
+     *
+     * @see \Dapphp\Radius\Radius::accessRequestEapMsChapV2()
+     * @see \Dapphp\Radius\Radius::accessRequestList()
+     *
+     * @param array $serverList Array of servers to authenticate against
+     * @param string $username  The username to authenticate as
+     * @param string $password  The plain text password that will be hashed using MS-CHAPv2
+     * @return boolean          true if negotiation resulted in an Access-Accept packet, false otherwise
+     */
+    public function accessRequestEapMsChapV2List($serverList, $username, $password)
+    {
+        if (!is_array($serverList)) {
+            $this->errorCode    = 127;
+            $this->errorMessage = sprintf(
+                'server list passed to accessRequestl must be array; %s given', gettype($serverList)
+                );
+
+            return false;
+        }
+
+        foreach($serverList as $server) {
+            $this->setServer($server);
+
+            $result = $this->accessRequestEapMsChapV2($username, $password);
+
+            if ($result === true) {
+                break; // success
+            } elseif ($this->getErrorCode() === self::TYPE_ACCESS_REJECT) {
+                break; // access rejected
+            } else {
+                /* timeout or other possible transient error; try next host */
+            }
+        }
+
+        return $result;
     }
 
     /**
