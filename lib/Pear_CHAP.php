@@ -47,6 +47,10 @@ if (!defined('OPENSSL_RAW_DATA')) {
     // added for dapphp/radius
     define('OPENSSL_RAW_DATA', 1);
 }
+if (!defined('OPENSSL_ZERO_PADDING')) {
+    // added for dapphp/radius
+    define('OPENSSL_ZERO_PADDING', 2);
+}
 
 /**
 * Classes for generating packets for various CHAP Protocols:
