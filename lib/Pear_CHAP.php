@@ -178,6 +178,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
     protected $flags = 1;
     //var $flags = 1;  // removed for dapphp/radius
 
+    protected $useMcrypt = false; // added for dapphp/radius (php 5.3 must use mcrypt)
+
     /**
      * Constructor
      *
@@ -201,8 +203,12 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
         // Added mcrypt check for PHP 5.3 for dapphp/radius
         // OPENSSL_RAW_DATA and OPENSSL_ZERO_PADDING are required but not
         // supported by ext/openssl until PHP 5.4.
-        if (version_compare(PHP_VERSION, '5.4') < 0 && !extension_loaded('mcrypt')) {
-            throw new \Exception("Radius MSCHAP functions require mcrypt extension for PHP 5.3");
+        if (version_compare(PHP_VERSION, '5.4') < 0) {
+            if (!extension_loaded('mcrypt')) {
+                throw new \Exception("Radius MSCHAP functions require mcrypt extension for PHP 5.3");
+            }
+
+            $this->useMcrypt = true;
         }
     }
 
@@ -297,7 +303,7 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
 
         $hash = str_pad($hash, 21, "\0");
 
-        if (extension_loaded('openssl')) {
+        if (extension_loaded('openssl') && $this->useMcrypt === false) {
             // added openssl routines for dapphp/radius
             $key   = $this->_desAddParity(substr($hash, 0, 7));
             $resp1 = openssl_encrypt($this->challenge, 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
@@ -358,7 +364,7 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
     //function _desHash($plain)  // removed for dapphp/radius
     private function _desHash($plain)
     {
-        if (extension_loaded('openssl')) {
+        if (extension_loaded('openssl') && $this->useMcrypt === false) {
             // added openssl routines for dapphp/radius
             $key = $this->_desAddParity($plain);
             $hash = openssl_encrypt('KGS!@#$%', 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
