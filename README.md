@@ -1,3 +1,9 @@
+<p align="center">
+[![Build Status](https://travis-ci.org/dapphp/radius.svg?branch=master)](https://travis-ci.org/dapphp/radius)
+[![Total Downloads](https://poser.pugx.org/dapphp/radius/downloads)](https://packagist.org/packages/dapphp/radius)
+[![Latest Stable Version](https://poser.pugx.org/dapphp/radius/v/stable)](https://packagist.org/packages/dapphp/radius)
+</p>
+
 ## Name:
 
 **Dapphp\Radius** - A pure PHP RADIUS client based on the SysCo/al implementation
@@ -6,10 +12,6 @@
 
 * Drew Phillips <drew@drew-phillips.com>
 * SysCo/al <developer@sysco.ch> (http://developer.sysco.ch/php/)
-
-## Requirements:
-
-* PHP 5.3 or greater
 
 ## Description:
 
@@ -129,6 +131,10 @@ and credentials to test).
 	$client->setDebug(true); // enable debug output on console
 	// Shows what attributes are sent and received, and info about the request/response
 
+
+## Requirements:
+
+* PHP 5.3 or greater
 
 ## TODO:
 
