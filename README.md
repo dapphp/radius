@@ -1,7 +1,8 @@
-
-[![Build Status](https://travis-ci.org/dapphp/radius.svg?branch=master)](https://travis-ci.org/dapphp/radius)
-[![Total Downloads](https://poser.pugx.org/dapphp/radius/downloads)](https://packagist.org/packages/dapphp/radius)
-[![Latest Stable Version](https://poser.pugx.org/dapphp/radius/v/stable)](https://packagist.org/packages/dapphp/radius)
+<p align="center">
+<a href="https://travis-ci.org/dapphp/radius"><img src="https://travis-ci.org/dapphp/radius.svg?branch=master" alt="Build Status"></a>
+<a href="https://packagist.org/packages/dapphp/radius"><img src="https://poser.pugx.org/dapphp/radius/downloads" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/dapphp/radius"><img src="https://poser.pugx.org/dapphp/radius/v/stable" alt="Latest Stable Version"></a>
+</p>
 
 ## Name:
 
