@@ -107,6 +107,28 @@ class ClientTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('5f169b7d8176516f8092bce99008e097febfed2f043ec04e', bin2hex($response));
     }
 
+    public function testCryptCHAPMSv1Indirect()
+    {
+        // Ensure Pear_CHAP_MSv1 can be loaded by Radius and that setting the attributes works
+
+        $pass   = "This is ms-chap ~~++";
+        $chal   = "\x02\x04\x08\x10\x20\x40\x80\x00"; // 8 byte 'random' challenge
+        $client = new Radius();
+
+        $client->setMsChapPassword($pass, $chal);
+
+        $chapChallenge = $client->getAttributesToSend(26);
+
+        $vendor = unpack('NID', substr($chapChallenge, 0, 4));
+        $type   = ord(substr($chapChallenge, 4, 1));
+        $length = ord(substr($chapChallenge, 5, 1));
+        $data   = substr($chapChallenge, 6, $length);
+
+        $this->assertEquals(VendorId::MICROSOFT, $vendor['ID']);
+        $this->assertEquals(11, $type); // chap challenge
+        $this->assertEquals($chal, $data);
+    }
+
     public function testCryptCHAPMSv2()
     {
         $pass = 'Passwords < Passphrases < $whatsNext?';

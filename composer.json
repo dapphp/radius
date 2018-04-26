@@ -26,6 +26,9 @@
         }
     ],
     "autoload": {
+	"psr-0": {
+            "Crypt_CHAP_": "lib/"
+	},
         "psr-4": {
             "Dapphp\\Radius\\": "src/"
         }
