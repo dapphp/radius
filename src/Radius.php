@@ -681,7 +681,7 @@ class Radius
     /**
      * Returns the raw wire data of the last received RADIUS packet.
      *
-     * @return string  The raw packet data of the last RADIUS response
+     * @return int  The raw packet data of the last RADIUS response
      */
     public function getResponsePacket()
     {
