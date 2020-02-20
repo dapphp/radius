@@ -385,7 +385,7 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
      * @return string
      */
     //function _desAddParity($key)  // removed for dapphp/radius
-    private function _desAddParity($key)
+    protected function _desAddParity($key)
     {
         static $odd_parity = array(
                 1,  1,  2,  2,  4,  4,  7,  7,  8,  8, 11, 11, 13, 13, 14, 14,
@@ -535,7 +535,7 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
         return $this->_challengeResponse();
     }
 
-	/**
+    /**
      * Generates the encrypted new password.
      *
      * @access public
@@ -543,13 +543,13 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @param  string  $OldPassword The old plain text password
      * @return string  EncryptedPwBlock
      */
-	public function NewPasswordEncryptedWithOldNtPasswordHash()
-	{
-		$PasswordHash = $this->NtPasswordHash($this->password); // pas besoin de str2unicode, la fonction l'intègre déjà
-		return $this->EncryptPwBlockWithPasswordHash($this->str2unicode($this->newPassword), $PasswordHash);
-	}
+    public function NewPasswordEncryptedWithOldNtPasswordHash()
+    {
+        $PasswordHash = $this->NtPasswordHash($this->password);
+        return $this->EncryptPwBlockWithPasswordHash($this->str2unicode($this->newPassword), $PasswordHash);
+    }
 
-	/**
+    /**
      * Generates PwBlock
      *
      * @access public
@@ -557,19 +557,19 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @param  string  $PasswordHash Old password hash
      * @return string  PwBlock
      */
-	public function EncryptPwBlockWithPasswordHash($Password, $PasswordHash)
-	{
-		// [516=2*256+4] unicode(2) maxpasslength(256) passlength(4)
- 		$ClearPwBlock = random_bytes(516);
-		$PwSize       = strlen($Password);(
-		$PwOffset     = strlen($ClearPwBlock) - $PwSize - 4;
+    public function EncryptPwBlockWithPasswordHash($Password, $PasswordHash)
+    {
+        // [516=2*256+4] unicode(2) maxpasslength(256) passlength(4)
+        $ClearPwBlock = random_bytes(516);
+        $PwSize       = strlen($Password);
+        $PwOffset     = strlen($ClearPwBlock) - $PwSize - 4;
 
-		$ClearPwBlock = substr_replace($ClearPwBlock, $Password, $PwOffset, $PwSize);
+        $ClearPwBlock = substr_replace($ClearPwBlock, $Password, $PwOffset, $PwSize);
 
-		$ClearPwBlock = substr_replace($ClearPwBlock, pack("V", $PwSize), -4, 4);
+        $ClearPwBlock = substr_replace($ClearPwBlock, pack("V", $PwSize), -4, 4);
 
-		return $this->rc4($PasswordHash, $ClearPwBlock);
-	}
+        return $this->rc4($PasswordHash, $ClearPwBlock);
+    }
 
 	/**
 	 * RC4 symmetric cipher encryption/decryption
@@ -579,34 +579,34 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
 	 * @param  string str - string to be encrypted/decrypted
 	 * @return string
 	 */
-	public function rc4($key, $str)
-	{
-		$s = array();
-		for ($i = 0; $i < 256; $i++) {
-			$s[$i] = $i;
-		}
-		$j = 0;
-		for ($i = 0; $i < 256; $i++) {
-			$j = ($j + $s[$i] + ord($key[$i % strlen($key)])) % 256;
-			$x = $s[$i];
-			$s[$i] = $s[$j];
-			$s[$j] = $x;
-		}
-		$i = 0;
-		$j = 0;
-		$res = '';
-		for ($y = 0; $y < strlen($str); $y++) {
-			$i = ($i + 1) % 256;
-			$j = ($j + $s[$i]) % 256;
-			$x = $s[$i];
-			$s[$i] = $s[$j];
-			$s[$j] = $x;
-			$res .= $str[$y] ^ chr($s[($s[$i] + $s[$j]) % 256]);
-		}
-		return $res;
-	}
+    public function rc4($key, $str)
+    {
+        $s = array();
+        for ($i = 0; $i < 256; $i++) {
+            $s[$i] = $i;
+        }
+        $j = 0;
+        for ($i = 0; $i < 256; $i++) {
+            $j = ($j + $s[$i] + ord($key[$i % strlen($key)])) % 256;
+            $x = $s[$i];
+            $s[$i] = $s[$j];
+            $s[$j] = $x;
+        }
+        $i = 0;
+        $j = 0;
+        $res = '';
+        for ($y = 0; $y < strlen($str); $y++) {
+            $i = ($i + 1) % 256;
+            $j = ($j + $s[$i]) % 256;
+            $x = $s[$i];
+            $s[$i] = $s[$j];
+            $s[$j] = $x;
+            $res .= $str[$y] ^ chr($s[($s[$i] + $s[$j]) % 256]);
+        }
+        return $res;
+    }
 
-	/**
+    /**
      * ?
      *
      * @access public
@@ -614,14 +614,14 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @param  string  $OldPassword The old plain text password
      * @return string  EncryptedPasswordHash
      */
-	public function OldNtPasswordHashEncryptedWithNewNtPasswordHash()
-	{
-		$OldPasswordHash = $this->NtPasswordHash($this->password);
-		$NewPasswordHash = $this->NtPasswordHash($this->newPassword);
-		return $this->NtPasswordHashEncryptedWithBlock($OldPasswordHash, $NewPasswordHash);
-	}
+    public function OldNtPasswordHashEncryptedWithNewNtPasswordHash()
+    {
+        $OldPasswordHash = $this->NtPasswordHash($this->password);
+        $NewPasswordHash = $this->NtPasswordHash($this->newPassword);
+        return $this->NtPasswordHashEncryptedWithBlock($OldPasswordHash, $NewPasswordHash);
+    }
 
-	/**
+    /**
      * ?
      *
      * @access public
@@ -629,29 +629,29 @@ class Crypt_CHAP_MSv2 extends Crypt_CHAP_MSv1
      * @param  string  $Block        Key to use for encryption
      * @return string
      */
-	public function NtPasswordHashEncryptedWithBlock($PasswordHash, $Block)
-	{
-		if (extension_loaded('openssl') && $this->useMcrypt === false) {
-			$key   = $this->_desAddParity(substr($Block, 0, 7));
-			$resp1 = openssl_encrypt(substr($PasswordHash, 0, 8), 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
-		
-			$key   = $this->_desAddParity(substr($Block, 7, 7));
-			$resp2 = openssl_encrypt(substr($PasswordHash, 8, 8), 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
-		} else {
-			$td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
-			$iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
+    public function NtPasswordHashEncryptedWithBlock($PasswordHash, $Block)
+    {
+        if (extension_loaded('openssl') && $this->useMcrypt === false) {
+            $key   = $this->_desAddParity(substr($Block, 0, 7));
+            $resp1 = openssl_encrypt(substr($PasswordHash, 0, 8), 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
 
-			$key = $this->_desAddParity(substr($Block, 0, 7));
-			mcrypt_generic_init($td, $key, $iv);
-			$resp1 = mcrypt_generic($td, substr($PasswordHash, 0, 8));
-			mcrypt_generic_deinit($td);
+            $key   = $this->_desAddParity(substr($Block, 7, 7));
+            $resp2 = openssl_encrypt(substr($PasswordHash, 8, 8), 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+        } else {
+            $td = mcrypt_module_open(MCRYPT_DES, '', MCRYPT_MODE_ECB, '');
+            $iv = mcrypt_create_iv (mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
 
-			$key   = $this->_desAddParity(substr($Block, 7, 7));
-			mcrypt_generic_init($td, $key, $iv);
-			$resp2 = mcrypt_generic($td, substr($PasswordHash, 8, 8));
-			mcrypt_generic_deinit($td);
-		}
-		return $resp1 . $resp2;
-	}
+            $key = $this->_desAddParity(substr($Block, 0, 7));
+            mcrypt_generic_init($td, $key, $iv);
+            $resp1 = mcrypt_generic($td, substr($PasswordHash, 0, 8));
+            mcrypt_generic_deinit($td);
+
+            $key   = $this->_desAddParity(substr($Block, 7, 7));
+            mcrypt_generic_init($td, $key, $iv);
+            $resp2 = mcrypt_generic($td, substr($PasswordHash, 8, 8));
+            mcrypt_generic_deinit($td);
+        }
+        return $resp1 . $resp2;
+    }
 
 }
