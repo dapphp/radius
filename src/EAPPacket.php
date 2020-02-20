@@ -19,6 +19,7 @@ class EAPPacket
     const TYPE_MD5_CHALLENGE = 4;
     const TYPE_OTP           = 5;
     const TYPE_GENERIC_TOKEN = 6;
+    const TYPE_PEAP_EAP      = 25;
     const TYPE_EAP_MS_AUTH   = 26;
 
     public $code;
@@ -42,6 +43,41 @@ class EAPPacket
         $packet->data = $identity;
 
         return $packet->__toString();
+    }
+
+    /**
+     * Helper function to generate an EAP Legacy NAK packet
+     *
+     * @param string $desiredAuth  The desired auth method
+     * @param int $id              The packet ID, given by server at predecessing proposal
+     * @return string An EAP Legacy NAK packet
+     */
+    public static function legacyNak($desiredAuth, $id)
+    {
+        $packet = new self();
+        $packet->setId($id);
+        $packet->code = self::CODE_RESPONSE;
+        $packet->type = self::TYPE_NAK;
+        $packet->data = chr($desiredAuth);
+
+        return $packet->__toString();
+    }
+
+    /**
+     * Helper function to generate an EAP Success packet
+     *
+     * @param string $desiredAuth  The identity (username) to send in the packet
+     * @param int $id              The packet ID, given by server at predecessing proposal
+     * @return string An EAP Legacy NAK packet
+     */
+    public static function eapSuccess($id)
+    {
+		$eapSuccess = new MsChapV2Packet();
+		$eapSuccess->opcode = MsChapV2Packet::OPCODE_SUCCESS;
+
+        $packet = self::mschapv2($eapSuccess, $id);
+
+        return $packet;
     }
 
     /**
@@ -95,7 +131,7 @@ class EAPPacket
      */
     public function setId($id = null)
     {
-        if ($id == null) {
+        if (is_null($id)) {
             $this->id = mt_rand(0, 255);
         } else {
             $this->id = (int)$id;
