@@ -176,9 +176,9 @@ class Radius
      * @param string $radiusHost          The RADIUS server hostname or IP address
      * @param string $sharedSecret        The RADIUS server shared secret
      * @param string $radiusSuffix        The username suffix to use when authenticating
-     * @param number $timeout             The timeout (in seconds) to wait for RADIUS responses
-     * @param number $authenticationPort  The port for authentication requests (default = 1812)
-     * @param number $accountingPort      The port for accounting requests (default = 1813)
+     * @param int $timeout                The timeout (in seconds) to wait for RADIUS responses
+     * @param int $authenticationPort     The port for authentication requests (default = 1812)
+     * @param int $accountingPort         The port for accounting requests (default = 1813)
      */
     public function __construct($radiusHost         = '127.0.0.1',
                                 $sharedSecret       = '',
