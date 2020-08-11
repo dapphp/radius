@@ -240,8 +240,8 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
     {
         $uni = '';
         $str = (string) $str;
-        for ($i = 0; $i < strlen($str); $i++) {
-            $a = ord($str{$i}) << 8;
+        for ($i = 0; $i < mb_strlen($str); $i++) {
+            $a = mb_ord(mb_substr($str,$i,1)) << 8;
             $uni .= sprintf("%X", $a);
         }
         return pack('H*', $uni);
