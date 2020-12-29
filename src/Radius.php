@@ -176,9 +176,9 @@ class Radius
      * @param string $radiusHost          The RADIUS server hostname or IP address
      * @param string $sharedSecret        The RADIUS server shared secret
      * @param string $radiusSuffix        The username suffix to use when authenticating
-     * @param number $timeout             The timeout (in seconds) to wait for RADIUS responses
-     * @param number $authenticationPort  The port for authentication requests (default = 1812)
-     * @param number $accountingPort      The port for accounting requests (default = 1813)
+     * @param int $timeout                The timeout (in seconds) to wait for RADIUS responses
+     * @param int $authenticationPort     The port for authentication requests (default = 1812)
+     * @param int $accountingPort         The port for accounting requests (default = 1813)
      */
     public function __construct($radiusHost         = '127.0.0.1',
                                 $sharedSecret       = '',
@@ -279,7 +279,7 @@ class Radius
     /**
      * Get the code of the last error.
      *
-     * @return number  The error code
+     * @return int  The error code
      */
     public function getErrorCode()
     {
@@ -485,7 +485,7 @@ class Radius
     /**
      * Get the CHAP ID and increment the counter.
      *
-     * @return number  The CHAP identifier for the next packet
+     * @return int  The CHAP identifier for the next packet
      */
     public function getChapId()
     {
@@ -591,7 +591,7 @@ class Radius
     /**
      * Set the physical port number of the NAS which is authenticating the user.
      *
-     * @param number $port  The NAS port
+     * @param int $port  The NAS port
      * @return \Dapphp\Radius\Radius
      */
     public function setNasPort($port = 0)
@@ -615,7 +615,7 @@ class Radius
     /**
      * Set the timeout (in seconds) after which we'll give up waiting for a response from the RADIUS server.
      *
-     * @param number $timeout  The timeout (in seconds) for waiting for RADIUS responses.
+     * @param int $timeout  The timeout (in seconds) for waiting for RADIUS responses.
      * @return \Dapphp\Radius\Radius
      */
     public function setTimeout($timeout = 5)
@@ -630,7 +630,7 @@ class Radius
     /**
      * Get the current timeout value for RADIUS response packets.
      *
-     * @return number  The timeout
+     * @return int  The timeout
      */
     public function getTimeout()
     {
@@ -640,7 +640,7 @@ class Radius
     /**
      * Set the port number used by the RADIUS server for authentication (default = 1812).
      *
-     * @param number $port  The port for sending Access-Request packets
+     * @param int $port  The port for sending Access-Request packets
      * @return \Dapphp\Radius\Radius
      */
     public function setAuthenticationPort($port)
@@ -655,7 +655,7 @@ class Radius
     /**
      * Get the port number used for authentication
      *
-     * @return number  The RADIUS auth port
+     * @return int  The RADIUS auth port
      */
     public function getAuthenticationPort()
     {
@@ -665,7 +665,7 @@ class Radius
     /**
      * Set the port number used by the RADIUS server for accounting (default = 1813)
      *
-     * @param number $port  The port for sending Accounting request packets
+     * @param int $port  The port for sending Accounting request packets
      * @return \Dapphp\Radius\Radius
      */
     public function setAccountingPort($port)
@@ -681,7 +681,7 @@ class Radius
     /**
      * Returns the raw wire data of the last received RADIUS packet.
      *
-     * @return string  The raw packet data of the last RADIUS response
+     * @return int  The raw packet data of the last RADIUS response
      */
     public function getResponsePacket()
     {
@@ -766,7 +766,7 @@ class Radius
      * Gets the name of a RADIUS packet from the numeric value.
      * This is only used for debugging functions
      *
-     * @param number $info_index  The packet type number
+     * @param int $info_index  The packet type number
      * @return mixed|string
      */
     public function getRadiusPacketInfo($info_index)
@@ -782,7 +782,7 @@ class Radius
      * Gets the info about a RADIUS attribute identifier such as the attribute name and data type.
      * This is used internally for encoding packets and debug output.
      *
-     * @param number $info_index  The RADIUS packet attribute number
+     * @param int $info_index  The RADIUS packet attribute number
      * @return array 2 element array with Attibute-Name and Data Type
      */
     public function getAttributesInfo($info_index)
@@ -797,7 +797,7 @@ class Radius
     /**
      * Set an arbitrary RADIUS attribute to be sent in the next packet.
      *
-     * @param number $type  The number of the RADIUS attribute
+     * @param int    $type  The number of the RADIUS attribute
      * @param mixed  $value  The value of the attribute
      * @return \Dapphp\Radius\Radius
      */
@@ -903,8 +903,8 @@ class Radius
     /**
      * Adds a vendor specific attribute to the RADIUS packet
      *
-     * @param number $vendorId  The RADIUS vendor ID
-     * @param number $attributeType  The attribute number of the vendor specific attribute
+     * @param int    $vendorId  The RADIUS vendor ID
+     * @param int    $attributeType  The attribute number of the vendor specific attribute
      * @param mixed  $attributeValue The data for the attribute
      * @return \Dapphp\Radius\Radius
      */
@@ -923,7 +923,7 @@ class Radius
     /**
      * Remove an attribute from a RADIUS packet
      *
-     * @param number $type  The attribute number to remove
+     * @param int    $type  The attribute number to remove
      * @return \Dapphp\Radius\Radius
      */
     public function removeAttribute($type)
@@ -1001,7 +1001,7 @@ class Radius
      *
      * @param string $username  Username to authenticate as
      * @param string $password  Password to authenticate with using PAP
-     * @param number $timeout   The timeout (in seconds) to wait for a response packet
+     * @param int    $timeout   The timeout (in seconds) to wait for a response packet
      * @param string $state     The state of the request (default is Service-Type=1)
      * @return boolean          true if the server sent an Access-Accept packet, false otherwise
      */
@@ -1085,7 +1085,7 @@ class Radius
      * @param array  $serverList  Array of servers to authenticate against
      * @param string $username    Username to authenticate as
      * @param string $password    Password to authenticate with using PAP
-     * @param number $timeout     The timeout (in seconds) to wait for a response packet
+     * @param int    $timeout     The timeout (in seconds) to wait for a response packet
      * @param string $state       The state of the request (default is Service-Type=1)
      *
      * @return boolean true if the server sent an Access-Accept packet, false otherwise
@@ -1603,7 +1603,7 @@ class Radius
     /**
      * Set the RADIUS packet identifier that will be used for the next request
      *
-     * @param number $identifierToSend  The packet identifier to send
+     * @param int    $identifierToSend  The packet identifier to send
      * @return \Dapphp\Radius\Radius
      */
     public function setNextIdentifier($identifierToSend = 0)
@@ -1618,7 +1618,7 @@ class Radius
     /**
      * Increment the packet identifier and return the number number
      *
-     * @return number  The radius packet id
+     * @return int     The radius packet id
      */
     public function getNextIdentifier()
     {
