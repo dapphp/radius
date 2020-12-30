@@ -22,6 +22,8 @@ class MsChapV2Packet
     public $challenge;
     public $response;
     public $name;
+    public $encryptedPwd;
+    public $encryptedHash;
 
     /**
      * Parse an MSCHAP v2 packet into a structure
@@ -43,18 +45,18 @@ class MsChapV2Packet
         $p->valueSize = ord($packet[4]);
 
         switch($p->opcode) {
-            case 1: // challenge
+            case self::OPCODE_CHALLENGE: // challenge
                 $p->challenge = substr($packet, 5, 16);
                 $p->name      = substr($packet, -($p->msLength + 5 - $p->valueSize - 10));
                 break;
 
-            case 2: // response
+            case self::OPCODE_RESPONSE: // response
                 break;
 
-            case 3: // success
+            case self::OPCODE_SUCCESS: // success
                 break;
 
-            case 4: // failure
+            case self::OPCODE_FAILURE: // failure
                 $p->response = substr($packet, 4);
                 break;
         }
@@ -90,6 +92,18 @@ class MsChapV2Packet
 
             case self::OPCODE_SUCCESS: // success
                 return chr(3);
+
+            case self::OPCODE_FAILURE: // failure
+                return chr(4);
+
+            case self::OPCODE_CHANGEPASS: // changepass  [RFC2759]
+                $packet .= $this->encryptedPwd;   // 516 Section 8.9
+                $packet .= $this->encryptedHash;  // 16	 Section 8.12
+                $packet .= $this->challenge;      // 16	 Response packet description
+                $packet .= str_repeat("\x00", 8); // 8	 reserved
+                $packet .= $this->response;       // 24	 ntreponse
+                $packet .= "\x00\x00";            // 2	 flags, always 0
+                break;
         }
 
         $length = pack('n', strlen($packet));
