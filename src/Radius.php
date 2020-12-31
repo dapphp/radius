@@ -1149,7 +1149,7 @@ class Radius
         $attributes = $this->getAttributesToSend();
 
 
-		// compose and send identity packet as a start of authentication
+        // compose and send identity packet as a start of authentication
         $eapPacket = EAPPacket::identity($username);
 
         $this->clearDataToSend()
@@ -1184,40 +1184,40 @@ class Radius
 
         $eap = EAPPacket::fromString($eap);
 
-		// checking what type of EAP-Message we have
-		// if it is a PEAP proposal, we start an EAP fallback
+        // checking what type of EAP-Message we have
+        // if it is a PEAP proposal, we start an EAP fallback
         if ($eap->type == EAPPacket::TYPE_PEAP_EAP) { // fallback if PEAP
-	        $eapId     = $eap->id;
+            $eapId     = $eap->id;
 
-			$eapPacket = EAPPacket::legacyNak(EAPPacket::TYPE_EAP_MS_AUTH, $eapId);
+            $eapPacket = EAPPacket::legacyNak(EAPPacket::TYPE_EAP_MS_AUTH, $eapId);
 
-	        $this->clearDataToSend()
-	             ->setPacketType(self::TYPE_ACCESS_REQUEST);
+            $this->clearDataToSend()
+                 ->setPacketType(self::TYPE_ACCESS_REQUEST);
 
-	        $this->attributesToSend = $attributes;
-	        $this->setUsername($username)
-	             ->setAttribute(79, $eapPacket)
-	             ->setIncludeMessageAuthenticator();
+            $this->attributesToSend = $attributes;
+            $this->setUsername($username)
+                 ->setAttribute(79, $eapPacket)
+                 ->setIncludeMessageAuthenticator();
 
-	        $resp = $this->accessRequest(null, null, 0, $state);
+            $resp = $this->accessRequest(null, null, 0, $state);
 
-	        if ($this->errorCode) {
-	            return false;
-	        }
+            if (!$resp) {
+                return false;
+            }
 
-	        $eap = $this->getReceivedAttribute(79);
+            $eap = $this->getReceivedAttribute(79);
 
-	        if ($eap == null) {
-	            $this->errorCode    = 102;
-	            $this->errorMessage = 'EAP packet missing from Radius EAP fallback';
-	            return false;
-	        }
+            if ($eap == null) {
+                $this->errorCode    = 102;
+                $this->errorMessage = 'EAP packet missing from Radius EAP fallback';
+                return false;
+            }
 
-	        $eap = EAPPacket::fromString($eap);
+            $eap = EAPPacket::fromString($eap);
         }
 
-		// since we have check that we are not in PEAP method, we should be in EAP
-		// so let's check this and return error if not
+        // since we have check that we are not in PEAP method, we should be in EAP
+        // so let's check this and return error if not
         if ($eap->type != EAPPacket::TYPE_EAP_MS_AUTH) {
             $this->errorCode    = 102;
             $this->errorMessage = 'EAP type is not EAP_MS_AUTH in access response';
@@ -1285,7 +1285,7 @@ class Radius
             $err = (!empty($chapPacket->response)) ? $chapPacket->response : 'General authentication failure';
 
             $pattern = '/E=(\d{1,10}).*R=(\d).*C=([0-9A-Fa-f]{32}).*V=(\d{1,10})/';
-            
+
             if (preg_match($pattern, $chapPacket->response, $err)) {
                 switch($err[1]) {
                     case '691':
@@ -1354,24 +1354,24 @@ class Radius
         */
         $resp = $this->accessRequestEapMsChapV2($username, $password);
 
-		if ($resp) {
-			$this->errorCode = 3;
-			$this->errorMessage = 'Password must be expired to be changed';
-			return false;
-		}
+        if ($resp) {
+            $this->errorCode = 3;
+            $this->errorMessage = 'Password must be expired to be changed';
+            return false;
+        }
 
         if ($this->radiusPacketReceived == self::TYPE_ACCESS_REJECT) {
-			$this->errorCode    = 3;
-			$this->errorMessage = 'Access rejected, invalid account';
-			return false;
+            $this->errorCode    = 3;
+            $this->errorMessage = 'Access rejected, invalid account';
+            return false;
         } elseif ($this->radiusPacketReceived != self::TYPE_ACCESS_CHALLENGE) {
             $this->errorCode    = 102;
             $this->errorMessage = 'Access-Request did not get Access-Challenge response';
             return false;
         }
 
-		$state = $this->getReceivedAttribute(24);
-		$eap   = $this->getReceivedAttribute(79);
+        $state = $this->getReceivedAttribute(24);
+        $eap   = $this->getReceivedAttribute(79);
 
         if ($eap == null) {
             $this->errorCode    = 102;
@@ -1379,7 +1379,7 @@ class Radius
             return false;
         }
 
-		$eap = EAPPacket::fromString($eap);
+        $eap = EAPPacket::fromString($eap);
 
         if ($eap->type != EAPPacket::TYPE_EAP_MS_AUTH) {
             $this->errorCode    = 102;
@@ -1389,86 +1389,86 @@ class Radius
 
         $chapPacket = MsChapV2Packet::fromString($eap->data);
 
-		// chap response opcode should be OPCODE_FAILURE, other cases are exceptions
+        // chap response opcode should be OPCODE_FAILURE, other cases are exceptions
         if (!$chapPacket || $chapPacket->opcode != MsChapV2Packet::OPCODE_FAILURE) {
             $this->errorCode    = 102;
             $this->errorMessage = 'Invalid reply from auth server';
             return false;
         }
 
-		$err      = (!empty($chapPacket->response)) ? $chapPacket->response : 'General authentication failure';
-		$pattern  = '/E=(\d{1,10}).*R=(\d).*C=([0-9A-Fa-f]{32}).*V=(\d{1,10})/';
-		$pm       = preg_match($pattern, $chapPacket->response, $err);
+        $err      = (!empty($chapPacket->response)) ? $chapPacket->response : 'General authentication failure';
+        $pattern  = '/E=(\d{1,10}).*R=(\d).*C=([0-9A-Fa-f]{32}).*V=(\d{1,10})/';
+        $pm       = preg_match($pattern, $chapPacket->response, $err);
 
-		if (!$pm) {
+        if (!$pm) {
             $this->errorCode    = 102;
             $this->errorMessage = 'Invalid reply from auth server';
             return false;
         }
-		
-		if ($err[1] == '648') {
-			$challenge = pack("H*", $err[3]);
-		} else {
-			switch($err[1]) {
-				case '691':
-					$err = 'Authentication failure, username or password incorrect.';
-					break;
 
-				case '646':
-					$err = 'Authentication failure, restricted logon hours.';
-					break;
+        if ($err[1] == '648') {
+            $challenge = pack("H*", $err[3]);
+        } else {
+            switch($err[1]) {
+                case '691':
+                    $err = 'Authentication failure, username or password incorrect.';
+                    break;
 
-				case '647':
-					$err = 'Account disabled';
-					break;
+                case '646':
+                    $err = 'Authentication failure, restricted logon hours.';
+                    break;
 
-				case '649':
-					$err = 'No dial in permission';
-					break;
+                case '647':
+                    $err = 'Account disabled';
+                    break;
 
-				case '709':
-					$err = 'Error changing password';
-					break;
-			}
+                case '649':
+                    $err = 'No dial in permission';
+                    break;
 
-			$this->errorCode    = 3;
-			$this->errorMessage = $err;
-			return false;
-		}
+                case '709':
+                    $err = 'Error changing password';
+                    break;
+            }
 
-		$chapId     = $chapPacket->msChapId + 1;
+            $this->errorCode    = 3;
+            $this->errorMessage = $err;
+            return false;
+        }
 
-		$msChapV2   = new \Crypt_CHAP_MSv2;
-		$msChapV2->username      = $username;
+        $chapId     = $chapPacket->msChapId + 1;
+
+        $msChapV2   = new \Crypt_CHAP_MSv2;
+        $msChapV2->username      = $username;
         $msChapV2->password      = $password;
-		$msChapV2->chapid        = $chapId;
-		$msChapV2->authChallenge = $challenge;
+        $msChapV2->chapid        = $chapId;
+        $msChapV2->authChallenge = $challenge;
 
-		$chapPacket->opcode        = MsChapV2Packet::OPCODE_CHANGEPASS;
-		$chapPacket->msChapId      = $chapId;
-		$chapPacket->name          = $username;
-		$chapPacket->response      = $msChapV2->challengeResponse();
-		$chapPacket->challenge     = $msChapV2->peerChallenge;
-		$chapPacket->encryptedPwd  = $msChapV2->newPasswordEncryptedWithOldNtPasswordHash($newPassword, $password);
-		$chapPacket->encryptedHash = $msChapV2->oldNtPasswordHashEncryptedWithNewNtPasswordHash($newPassword, $password);
+        $chapPacket->opcode        = MsChapV2Packet::OPCODE_CHANGEPASS;
+        $chapPacket->msChapId      = $chapId;
+        $chapPacket->name          = $username;
+        $chapPacket->response      = $msChapV2->challengeResponse();
+        $chapPacket->challenge     = $msChapV2->peerChallenge;
+        $chapPacket->encryptedPwd  = $msChapV2->newPasswordEncryptedWithOldNtPasswordHash($newPassword, $password);
+        $chapPacket->encryptedHash = $msChapV2->oldNtPasswordHashEncryptedWithNewNtPasswordHash($newPassword, $password);
 
-		$eapPacketSplit = str_split(EAPPacket::mschapv2($chapPacket, $chapId), 253);
+        $eapPacketSplit = str_split(EAPPacket::mschapv2($chapPacket, $chapId), 253);
 
         $this->clearDataToSend()
-			 ->setPacketType(self::TYPE_ACCESS_REQUEST);
+             ->setPacketType(self::TYPE_ACCESS_REQUEST);
         $this->attributesToSend = $attributes;
         $this->setUsername($username)
-			 ->setAttribute(79, $eapPacketSplit[0])
-			 ->setAttribute(79, $eapPacketSplit[1])
-			 ->setAttribute(79, $eapPacketSplit[2])
-			 ->setIncludeMessageAuthenticator();
+             ->setAttribute(79, $eapPacketSplit[0])
+             ->setAttribute(79, $eapPacketSplit[1])
+             ->setAttribute(79, $eapPacketSplit[2])
+             ->setIncludeMessageAuthenticator();
 
-		$resp = $this->accessRequest(null, null, 0, $state);
+        $resp = $this->accessRequest(null, null, 0, $state);
 
-		if (!$resp) {
-		    $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
-			return false;
-		}
+        if (!$resp) {
+            $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
+            return false;
+        }
 
         // got a success response - send success acknowledgement
         $eapPacket = EAPPacket::eapSuccess($chapId + 1);
