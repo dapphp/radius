@@ -852,7 +852,7 @@ class Radius
             }
         }
 
-		$multiAVP = array(26, 79); // vendor specific and EAP-Message
+        $multiAVP = array(26, 79); // vendor specific and EAP-Message
         if ($index > -1) {
             if (in_array($type, $multiAVP)) {
                 $this->attributesToSend[$index][] = $temp;
@@ -1186,7 +1186,7 @@ class Radius
 
 		// checking what type of EAP-Message we have
 		// if it is a PEAP proposal, we start an EAP fallback
-    	if ($eap->type == EAPPacket::TYPE_PEAP_EAP) { // fallback if PEAP
+        if ($eap->type == EAPPacket::TYPE_PEAP_EAP) { // fallback if PEAP
 	        $eapId     = $eap->id;
 
 			$eapPacket = EAPPacket::legacyNak(EAPPacket::TYPE_EAP_MS_AUTH, $eapId);
@@ -1328,28 +1328,32 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        $resp = $this->accessRequest(null, null, 0, $state);
-
-        if ($resp !== true) {
-            return false;
-        } else {
-            return true;
-        }
+        return $this->accessRequest(null, null, 0, $state);
     }
 
+    /**
+     * Allows the peer to change the password on the account specified in the preceding Response packet. The Change-Password
+     * packet should be sent only if the authenticator reports ERROR_PASSWD_EXPIRED (E=648) in the Message field of the
+     * Failure packet. RFC 2759 - 7. Change-Password Packet
+     *
+     * @param $username The account username
+     * @param $password The expired password
+     * @param $newPassword The new password for the account
+     * @return bool true if the password was changed, otherwise false and $this->errorCode and $this->errorMessage are set
+     */
     public function changePasswordEapMsChapV2($username, $password, $newPassword)
     {
-		/*
-		$resp may be:
-			true in case of valid auth (not expired, not disabled, good pwd...)
-			false with chap-opcode=failure and err=648
-			false with other cases
-		*/
 
         $attributes = $this->getAttributesToSend();
-//1
-		$resp = $this->accessRequestEapMsChapV2($username, $password);
-//6
+
+        /*
+        $resp may be:
+            true in case of valid auth (not expired, not disabled, good pwd...)
+            false with chap-opcode=failure and err=648
+            false with other cases
+        */
+        $resp = $this->accessRequestEapMsChapV2($username, $password);
+
 		if ($resp) {
 			$this->errorCode = 3;
 			$this->errorMessage = 'Password must be expired to be changed';
@@ -1436,8 +1440,7 @@ class Radius
 
 		$msChapV2   = new \Crypt_CHAP_MSv2;
 		$msChapV2->username      = $username;
-		$msChapV2->password      = $password;
-		$msChapV2->newPassword   = $newPassword;
+        $msChapV2->password      = $password;
 		$msChapV2->chapid        = $chapId;
 		$msChapV2->authChallenge = $challenge;
 
@@ -1446,27 +1449,27 @@ class Radius
 		$chapPacket->name          = $username;
 		$chapPacket->response      = $msChapV2->challengeResponse();
 		$chapPacket->challenge     = $msChapV2->peerChallenge;
-		$chapPacket->encryptedPwd  = $msChapV2->NewPasswordEncryptedWithOldNtPasswordHash();
-		$chapPacket->encryptedHash = $msChapV2->OldNtPasswordHashEncryptedWithNewNtPasswordHash();
+		$chapPacket->encryptedPwd  = $msChapV2->newPasswordEncryptedWithOldNtPasswordHash($newPassword, $password);
+		$chapPacket->encryptedHash = $msChapV2->oldNtPasswordHashEncryptedWithNewNtPasswordHash($newPassword, $password);
 
 		$eapPacketSplit = str_split(EAPPacket::mschapv2($chapPacket, $chapId), 253);
 
-		$this->clearDataToSend()
+        $this->clearDataToSend()
 			 ->setPacketType(self::TYPE_ACCESS_REQUEST);
-		$this->attributesToSend = $attributes;
-		$this->setUsername($username)
+        $this->attributesToSend = $attributes;
+        $this->setUsername($username)
 			 ->setAttribute(79, $eapPacketSplit[0])
 			 ->setAttribute(79, $eapPacketSplit[1])
 			 ->setAttribute(79, $eapPacketSplit[2])
 			 ->setIncludeMessageAuthenticator();
-//7
-		$resp = $this->accessRequest(null, null, 0, $state);
-//8
 
-		if ($this->errorCode) {
+		$resp = $this->accessRequest(null, null, 0, $state);
+
+		if (!$resp) {
+		    $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
 			return false;
 		}
-	
+
         // got a success response - send success acknowledgement
         $eapPacket = EAPPacket::eapSuccess($chapId + 1);
 
@@ -1476,18 +1479,9 @@ class Radius
         $this->setUsername($username)
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
-//9
-        $resp = $this->accessRequest(null, null, 0, $state);
-//10
-		// server answer should be parsed (Radius Access-Accept)
-		// est-ce que c'est traité dans accessRequest ?
 
-		// return method result
-        if ($resp !== true) {
-            return false;
-        } else {
-            return true;
-        }//*/
+        // returns true if password changed successfully
+        return $this->accessRequest(null, null, 0, $state);
     }
 
     /**
