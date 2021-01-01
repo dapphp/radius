@@ -81,11 +81,11 @@ class EAPPacket
     }
 
     /**
-     * Helper function for sending an MSCHAP v2 packet encapsulated in an EAP packet
+     * Helper function for sending an MS-CHAP-V2 packet encapsulated in an EAP packet
      *
      * @param \Dapphp\Radius\MsChapV2Packet $chapPacket The MSCHAP v2 packet to send
      * @param int $id  The CHAP packet identifier (random if omitted)
-     * @return string An EAP-MSCHAPv2 packet
+     * @return string An EAP packet with embedded MS-CHAP-V2 packet in the data field
      */
     public static function mschapv2(\Dapphp\Radius\MsChapV2Packet $chapPacket, $id = null)
     {

@@ -1121,7 +1121,7 @@ class Radius
     }
 
     /**
-     * Authenticate using EAP-MSCHAP v2.  This is a 4-way authentication
+     * Authenticate using EAP-MS-CHAP v2.  This is a 4-way authentication
      * process that sends an Access-Request, receives an Access-Challenge,
      * responds with an Access-Request, and finally sends an Access-Request with
      * an EAP success packet if the last Access-Challenge was a success.
@@ -1135,14 +1135,14 @@ class Radius
     public function accessRequestEapMsChapV2($username, $password)
     {
         /*
-         * RADIUS EAP MSCHAPv2 Process:
+         * RADIUS EAP MS-CHAP-V2 Process:
          * > RADIUS ACCESS_REQUEST w/ EAP identity packet
-         * < ACCESS_CHALLENGE w/ MSCHAP challenge encapsulated in EAP request
+         * < ACCESS_CHALLENGE w/ MS-CHAP challenge encapsulated in EAP request
          *   CHAP packet contains auth_challenge value
          *   Calculate encrypted password based on challenge for response
-         * > ACCESS_REQUEST w/ MSCHAP challenge response, peer_challenge &
+         * > ACCESS_REQUEST w/ MS-CHAP challenge response, peer_challenge &
          *   encrypted password encapsulated in an EAP response packet
-         * < ACCESS_CHALLENGE w/ MSCHAP success or failure in EAP packet.
+         * < ACCESS_CHALLENGE w/ MS-CHAP success or failure in EAP packet.
          * > ACCESS_REQUEST w/ EAP success packet if challenge was accepted
          *
          */
@@ -1229,7 +1229,7 @@ class Radius
 
         if (!$chapPacket || $chapPacket->opcode != MsChapV2Packet::OPCODE_CHALLENGE) {
             $this->errorCode    = 102;
-            $this->errorMessage = 'MSCHAP v2 access response packet missing challenge';
+            $this->errorMessage = 'MS-CHAP-V2 access response packet missing challenge';
             return false;
         }
 
@@ -1266,7 +1266,7 @@ class Radius
 
         if ($eap == null) {
             $this->errorCode    = 102;
-            $this->errorMessage = 'EAP packet missing from MSCHAP v2 challenge response';
+            $this->errorMessage = 'EAP packet missing from MS-CHAP-V2 challenge response';
             return false;
         }
 
@@ -1486,7 +1486,7 @@ class Radius
     }
 
     /**
-     * Perform a EAP-MSCHAP v2 4-way authentication against a list of servers.
+     * Perform a EAP-MS-CHAP v2 4-way authentication against a list of servers.
      * Each server must share the same RADIUS secret.
      *
      * @see \Dapphp\Radius\Radius::accessRequestEapMsChapV2()

@@ -4,7 +4,7 @@ namespace Dapphp\Radius;
 
 
 /**
- * Class for MSCHAP v2 packets encapsulated in EAP packets
+ * Class for MS-CHAP-V2 packets encapsulated in EAP packets
  *
  */
 class MsChapV2Packet
@@ -26,10 +26,10 @@ class MsChapV2Packet
     public $encryptedHash;
 
     /**
-     * Parse an MSCHAP v2 packet into a structure
+     * Parse an MS-CHAP-V2 packet into a structure
      *
-     * @param string $packet Raw MSCHAP v2 packet string
-     * @return \Dapphp\Radius\MsChapV2Packet The parsed packet structure
+     * @param string $packet Raw MS-CHAP-V2 packet string
+     * @return bool|MsChapV2Packet The parsed packet structure or false if the packet data is less than 5 bytes
      */
     public static function fromString($packet)
     {
@@ -66,7 +66,7 @@ class MsChapV2Packet
 
     /**
      * Convert a packet structure to a byte string for sending over the wire
-     * @return string  MSCHAP v2 packet string
+     * @return string  MS-CHAP-V2 packet string
      */
     public function __toString()
     {
@@ -101,7 +101,7 @@ class MsChapV2Packet
                 $packet .= $this->encryptedHash;  // 16	 Section 8.12
                 $packet .= $this->challenge;      // 16	 Response packet description
                 $packet .= str_repeat("\x00", 8); // 8	 reserved
-                $packet .= $this->response;       // 24	 ntreponse
+                $packet .= $this->response;       // 24	 ntresponse
                 $packet .= "\x00\x00";            // 2	 flags, always 0
                 break;
         }

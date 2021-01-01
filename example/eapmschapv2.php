@@ -1,7 +1,7 @@
 <?php
 
 /**
- * RADIUS client example using EAP-MSCHAP v2.
+ * RADIUS client example using EAP-MS-CHAP-V2.
  *
  * Tested with Windows Server 2012 R2 Network Policy Server
  */
