@@ -3,7 +3,7 @@
 /**
  * RADIUS client example using EAP-MS-CHAP-V2.
  *
- * Tested with Windows Server 2012 R2 Network Policy Server
+ * Tested on Windows Server 2012 R2, 2016, and 2019 Standard Network Policy Server.
  */
 
 error_reporting(E_ALL);

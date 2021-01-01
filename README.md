@@ -20,6 +20,7 @@ a RADIUS server in PHP.  It currently supports basic RADIUS auth using PAP,
 CHAP (MD5), MSCHAP v1, and EAP-MSCHAP v2.  The current 2.5.x branch is tested
 to work with the following RADIUS servers:
 
+- Microsoft Windows Server 2019 Network Policy Server
 - Microsoft Windows Server 2016 Network Policy Server
 - Microsoft Windows Server 2012 Network Policy Server
 - FreeRADIUS 2 and above

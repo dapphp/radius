@@ -13,6 +13,7 @@
  *  - Microsoft Radius server IAS
  *  - Microsoft Windows Server 2016 (Network Policy Server)
  *  - Microsoft Windows Server 2012 R2 (Network Policy Server)
+ *  - Microsoft Windows Server 2019 Standard (Network Policy Server)
  *  - Mideye RADIUS server (http://www.mideye.com)
  *  - Radl, a free Radius server for Windows
  *  - RSA SecurID
