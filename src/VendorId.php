@@ -15,6 +15,7 @@ class VendorId
     const ACC = 5;
     const ACME = 9148;
     const ACTELIS = 5468;
+    const ADTRAN = 664;
     const AEROHIVE = 26928;
     const AIRESPACE = 14179;
     const ALCATEL = 3041;
@@ -28,6 +29,7 @@ class VendorId
     const APTILO = 13209;
     const APTIS = 2637;
     const ARBOR = 9694;
+    const ARISTA = 30065;
     const ARUBA = 14823;
     const ASCEND = 529;
     const ASN = 23782;
@@ -35,6 +37,7 @@ class VendorId
     const AVAYA = 2167;
     const AZAIRE = 7751;
     const BAY_NETWORKS = 1584;
+    const BIG_SWITCH_NETWORKS = 37538;
     const BINTEC = 272;
     const BLUECOAT = 14501;
     const BOINGO = 22472;
@@ -45,7 +48,9 @@ class VendorId
     const BT = 594;
     const CABLELABS = 4491;
     const CABLETRON = 52;
+    const CAJUN_P330 = 2167;
     const CAMIANT = 21274;
+    const CHECKPOINT = 2620;
     const CHILLISPOT = 14559;
     const CISCO = 9;
     const CISCO_ASA = 3076;
@@ -54,11 +59,13 @@ class VendorId
     const CISCO_VPN5000 = 255;
     const CITRIX = 66;
     const CLAVISTER = 5089;
+    const CNERGEE = 49426;
     const COLUBRIS = 8744;
     const COLUMBIA_UNIVERSITY = 11862;
     const COMPATIBLE = 255;
     const COSINE = 3085;
     const DANTE = 27262;
+    const DELL_EMC = 674;
     const DHCP = 54;
     const DIGIUM = 22736;
     const DLINK = 171;
@@ -74,6 +81,7 @@ class VendorId
     const EXTREME = 1916;
     const F5 = 3375;
     const FDXTENDED = 34536;
+    const FORCE10 = 6027;
     const FORTINET = 12356;
     const FOUNDRY = 1991;
     const FREEDHCP = 34673;
@@ -89,6 +97,7 @@ class VendorId
     const IEA = 24023;
     const INFOBLOX = 7779;
     const INFONET = 4453;
+    const INFINERA = 8708;
     const IPUNPLUGGED = 5925;
     const ISSANNI = 5948;
     const ITK = 1195;
@@ -107,9 +116,12 @@ class VendorId
     const MERU = 15983;
     const MICROSOFT = 311;
     const MIKROTIK = 14988;
+    const MIMOSA = 43356;
     const MOTOROLA = 161;
     const MOTOROLA_WIMAX = 161;
     const NAVINI = 6504;
+    const NET = 177;
+    const NETBORER = 35987;
     const NETSCREEN = 3224;
     const NETWORKPHYSICS = 7119;
     const NEXANS = 266;
@@ -121,12 +133,15 @@ class VendorId
     const PALOALTO = 25461;
     const PATTON = 1768;
     const PERLE = 1966;
+    const PFSENSE = 13644;
+    const PICA8 = 35098;
     const PROPEL = 14895;
     const PROSOFT = 4735;
     const PROXIM = 841;
     const PUREWAVE = 21074;
     const QUICONNECT = 14436;
     const QUINTUM = 6618;
+    const RCNTEC = 46235;
     const REDCREEK = 1958;
     const RFC4679 = 3561;
     const ADSL_FORUM = 3561;
@@ -140,6 +155,8 @@ class VendorId
     const SHIVA = 166;
     const SIEMENS = 4329;
     const SLIPSTREAM = 7000;
+    const SOFAWARE = 6983;
+    const SOFTBANK = 22197;
     const SONICWALL = 8741;
     const SPRINGTIDE = 3551;
     const STARENT = 8164;
@@ -150,6 +167,7 @@ class VendorId
     const TERENA = 25178;
     const TRAPEZE = 14525;
     const TRAVELPING = 18681;
+    const TRIPPLITE = 850;
     const TROPOS = 14529;
     const T_SYSTEMS_NOVA = 16787;
     const UKERNA = 25622;
@@ -157,6 +175,8 @@ class VendorId
     const USR = 429;
     const UTSTARCOM = 7064;
     const VALEMOUNT = 16313;
+    const VAS_EXPERTS = 43823;
+    const VERIZON_WIRELESS = 12951;
     const VERSANET = 2180;
     const WALABI = 2004;
     const WAVERIDER = 2979;
