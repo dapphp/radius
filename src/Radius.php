@@ -1257,9 +1257,9 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        $resp = $this->accessRequest(null, null, 0, $state);
+        $this->accessRequest(null, null, 0, $state);
 
-        if (!$resp) {
+        if ($this->errorCode) {
             return false;
         }
 
@@ -1467,7 +1467,7 @@ class Radius
 
         $resp = $this->accessRequest(null, null, 0, $state);
 
-        if (!$resp) {
+        if ($this->errorCode) {
             $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
             return false;
         }
