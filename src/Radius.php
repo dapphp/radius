@@ -1160,6 +1160,7 @@ class Radius
 
         $this->attributesToSend = $attributes;
         $this->setUsername($username)
+             ->removeAttribute(79)
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
@@ -1345,7 +1346,7 @@ class Radius
      */
     public function changePasswordEapMsChapV2($username, $password, $newPassword)
     {
-
+        $this->removeAttribute(79);
         $attributes = $this->getAttributesToSend();
 
         /*
