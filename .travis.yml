@@ -16,6 +16,10 @@ matrix:
       dist: trusty
     - php: 7.2
       dist: trusty
+    - php: 7.3
+      dist: bionic
+    - php: 7.4
+      dist: bionic
 
 before_install:
     - composer require --dev --no-update phpunit/phpunit ^4.8
