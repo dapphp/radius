@@ -1329,6 +1329,7 @@ class Radius
 
         // got a success response - send success acknowledgement
         $eapPacket = EAPPacket::eapSuccess($chapId + 1);
+        $state     = $this->getReceivedAttribute(24);
 
         $this->clearDataToSend()
              ->setPacketType(self::TYPE_ACCESS_REQUEST);
