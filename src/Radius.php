@@ -1217,13 +1217,19 @@ class Radius
             }
 
             $eap = EAPPacket::fromString($eap);
+        } elseif ($eap->type == EAPPacket::TYPE_MD5_CHALLENGE) {
+            // EAP type MD5, PPP CHAP protocol w/ MD5
+            $this->removeAttribute(79)
+                ->setChapPassword($password);
+
+            return $this->accessRequest($username);
         }
 
         // since we have check that we are not in PEAP method, we should be in EAP
         // so let's check this and return error if not
         if ($eap->type != EAPPacket::TYPE_EAP_MS_AUTH) {
             $this->errorCode    = 102;
-            $this->errorMessage = 'EAP type is not EAP_MS_AUTH in access response';
+            $this->errorMessage = 'EAP type is not EAP_MS_AUTH or MD5_CHALLENGE in access response';
             return false;
         }
 
