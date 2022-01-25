@@ -1104,6 +1104,8 @@ class Radius
             return false;
         }
 
+        $attributes = $this->getAttributesToSend(); // store base attributes
+
         foreach($serverList as $server) {
             $this->setServer($server);
 
@@ -1115,6 +1117,7 @@ class Radius
                 break; // access rejected
             } else {
                 /* timeout or other possible transient error; try next host */
+                $this->attributesToSend = $attributes; // reset base attributes
             }
         }
 
@@ -1519,6 +1522,8 @@ class Radius
             return false;
         }
 
+        $attributes = $this->getAttributesToSend(); // store base attributes
+
         foreach($serverList as $server) {
             $this->setServer($server);
 
@@ -1530,6 +1535,7 @@ class Radius
                 break; // access rejected
             } else {
                 /* timeout or other possible transient error; try next host */
+                $this->attributesToSend = $attributes; // reset base attributes
             }
         }
 
