@@ -5,7 +5,9 @@ use Dapphp\Radius\EAPPacket;
 use Dapphp\Radius\MsChapV2Packet;
 use Dapphp\Radius\VendorId;
 
-class ClientTest extends PHPUnit_Framework_TestCase
+use PHPUnit\Framework\TestCase;
+
+class ClientTest extends TestCase
 {
     public function testAttributes()
     {
@@ -248,6 +250,12 @@ class ClientTest extends PHPUnit_Framework_TestCase
 
     public function testEapPacketBasic()
     {
+        $p = new MsChapV2Packet();
+        $p->opcode = MsChapV2Packet::OPCODE_SUCCESS;
+        $s = $p->__toString();
+
+        $this->assertEquals("\x03", $s, "MsChapV2Packet success returns 0x03 without error");
+
         $p       = new EAPPacket();
         $p->code = EAPPacket::CODE_REQUEST;
         $p->id   = 111;
