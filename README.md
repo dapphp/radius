@@ -53,8 +53,19 @@ then you can use the class.
 
 ## Examples:
 
-See the `examples/` directory for working examples (change the server address
-and credentials to test).
+See the `examples/` directory for working examples. The RADIUS server address, secret, and credentials are read from
+environment variables and default to:
+
+    RADIUS_SERVER_ADDR=192.168.0.20
+    RADIUS_USER=nemo
+    RADIUS_PASS=arctangent
+    RADIUS_SECRET=xyzzy5461
+
+To print RADIUS debug info, specify the `-v` option.
+
+Example:
+
+    RADIUS_SERVER_ADDR=10.0.100.1 RADIUS_USER=radtest php example/client.php -v
 
 ## Synopsis:
 

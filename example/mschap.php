@@ -11,16 +11,24 @@ ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../autoload.php';
 
-$radius = new \Dapphp\Radius\Radius();
-$radius->setServer('192.168.0.20')     // IP or hostname of RADIUS server
-       ->setSecret('xyzzy5461')        // RADIUS shared secret
-       ->setNasIpAddress('127.0.0.1')  // IP or hostname of NAS (device authenticating user)
-       ->setNasPort(20);               // NAS port
+$server = (getenv('RADIUS_SERVER_ADDR')) ?: '192.168.0.20';
+$user   = (getenv('RADIUS_USER'))        ?: 'nemo';
+$pass   = (getenv('RADIUS_PASS'))        ?: 'arctangent';
+$secret = (getenv('RADIUS_SECRET'))      ?: 'xyzzy5461';
+$debug  = in_array('-v', $_SERVER['argv']);
 
-$radius->setMSChapPassword('arctangent123$'); // set mschapv1 password for user
+$radius = new \Dapphp\Radius\Radius();
+$radius->setServer($server)     // IP or hostname of RADIUS server
+       ->setSecret($secret)        // RADIUS shared secret
+       ->setNasIpAddress('127.0.0.1')  // IP or hostname of NAS (device authenticating user)
+       ->setNasPort(20)                   // NAS port
+       ->setDebug((bool)$debug);
+
+$radius->setMSChapPassword($pass); // set mschapv1 password for user
 
 // Send access request for user nemo
-$response = $radius->accessRequest('nemo');
+echo "Sending MS-CHAP access request to $server with username $user\n";
+$response = $radius->accessRequest($user);
 
 if ($response === false) {
     // false returned on failure
