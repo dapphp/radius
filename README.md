@@ -1,5 +1,5 @@
 <p align="center">
-<a href="https://app.travis-ci.com/github/dapphp/radius"><img src="https://app.travis-ci.com/dapphp/radius.svg?branch=master" alt="Build Status"></a>
+<a href="https://app.travis-ci.com/github/dapphp/radius"><img src="https://app.travis-ci.com/dapphp/radius.svg?branch=2.5" alt="Build Status"></a>
 <a href="https://packagist.org/packages/dapphp/radius"><img src="https://poser.pugx.org/dapphp/radius/downloads" alt="Total Downloads"></a>
 <a href="https://packagist.org/packages/dapphp/radius"><img src="https://poser.pugx.org/dapphp/radius/v/stable" alt="Latest Stable Version"></a>
 </p>
