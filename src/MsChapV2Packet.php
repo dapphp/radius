@@ -16,7 +16,7 @@ class MsChapV2Packet
     const OPCODE_CHANGEPASS = 7;
 
     public $opcode;
-    public $msChapId;
+    public $msChapId = 0;
     public $msLength;
     public $valueSize;
     public $challenge;

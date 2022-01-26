@@ -839,9 +839,9 @@ class Radius
                 case 'I':
                     // Integer, 32 bit unsigned value, most significant octet first.
                     $temp = chr($type) . chr(6) .
-                            chr(($value / (256 * 256 * 256)) % 256) .
-                            chr(($value / (256 * 256)) % 256) .
-                            chr(($value / (256)) % 256) .
+                            chr(intval(($value / (256 * 256 * 256))) % 256) .
+                            chr(intval(($value / (256 * 256))) % 256) .
+                            chr(intval(($value / (256))) % 256) .
                             chr($value % 256);
                     break;
                 case 'D':
@@ -1205,7 +1205,7 @@ class Radius
                  ->setAttribute(79, $eapPacket)
                  ->setIncludeMessageAuthenticator();
 
-            $resp = $this->accessRequest(null, null, 0, $state);
+            $resp = $this->accessRequest('', '', 0, $state);
 
             if (!$resp) {
                 return false;
@@ -1267,7 +1267,7 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        $this->accessRequest(null, null, 0, $state);
+        $this->accessRequest('', '', 0, $state);
 
         if ($this->errorCode) {
             return false;
@@ -1341,7 +1341,7 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        return $this->accessRequest(null, null, 0, $state);
+        return $this->accessRequest('', '', 0, $state);
     }
 
     /**
@@ -1476,7 +1476,7 @@ class Radius
              ->setAttribute(79, $eapPacketSplit[2])
              ->setIncludeMessageAuthenticator();
 
-        $resp = $this->accessRequest(null, null, 0, $state);
+        $resp = $this->accessRequest('', '', 0, $state);
 
         if ($this->errorCode) {
             $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
@@ -1494,7 +1494,7 @@ class Radius
              ->setIncludeMessageAuthenticator();
 
         // returns true if password changed successfully
-        return $this->accessRequest(null, null, 0, $state);
+        return $this->accessRequest('', '', 0, $state);
     }
 
     /**
