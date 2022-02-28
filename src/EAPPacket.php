@@ -26,13 +26,14 @@ class EAPPacket
     public $id;
     public $type;
     public $data;
-
+    
     /**
      * Helper function to generate an EAP Identity packet
      *
-     * @param string $identity  The identity (username) to send in the packet
-     * @param int $id           The packet ID (random if omitted)
+     * @param  string  $identity  The identity (username) to send in the packet
+     * @param  int  $id  The packet ID (random if omitted)
      * @return string An EAP identity packet
+     * @throws \Exception
      */
     public static function identity($identity, $id = null)
     {
@@ -42,15 +43,16 @@ class EAPPacket
         $packet->type = self::TYPE_IDENTITY;
         $packet->data = $identity;
 
-        return $packet->__toString();
+        return (string) $packet;
     }
-
+    
     /**
      * Helper function to generate an EAP Legacy NAK packet
      *
-     * @param string $desiredAuth  The desired auth method
-     * @param int $id              The packet ID, given by server at predecessing proposal
+     * @param  string  $desiredAuth  The desired auth method
+     * @param  int  $id  The packet ID, given by server at predecessing proposal
      * @return string An EAP Legacy NAK packet
+     * @throws \Exception
      */
     public static function legacyNak($desiredAuth, $id)
     {
@@ -60,32 +62,31 @@ class EAPPacket
         $packet->type = self::TYPE_NAK;
         $packet->data = chr($desiredAuth);
 
-        return $packet->__toString();
+        return (string) $packet;
     }
-
+    
     /**
      * Helper function to generate an EAP Success packet
      *
-     * @param string $desiredAuth  The identity (username) to send in the packet
-     * @param int $id              The packet ID, given by server at predecessing proposal
+     * @param  int  $id  The packet ID, given by server at predecessing proposal
      * @return string An EAP Legacy NAK packet
+     * @throws \Exception
      */
     public static function eapSuccess($id)
     {
 		$eapSuccess = new MsChapV2Packet();
 		$eapSuccess->opcode = MsChapV2Packet::OPCODE_SUCCESS;
-
-        $packet = self::mschapv2($eapSuccess, $id);
-
-        return $packet;
+    
+        return self::mschapv2($eapSuccess, $id);
     }
-
+    
     /**
      * Helper function for sending an MS-CHAP-V2 packet encapsulated in an EAP packet
      *
-     * @param \Dapphp\Radius\MsChapV2Packet $chapPacket The MSCHAP v2 packet to send
-     * @param int $id  The CHAP packet identifier (random if omitted)
+     * @param  \Dapphp\Radius\MsChapV2Packet  $chapPacket  The MSCHAP v2 packet to send
+     * @param  int  $id  The CHAP packet identifier (random if omitted)
      * @return string An EAP packet with embedded MS-CHAP-V2 packet in the data field
+     * @throws \Exception
      */
     public static function mschapv2(\Dapphp\Radius\MsChapV2Packet $chapPacket, $id = null)
     {
@@ -93,16 +94,16 @@ class EAPPacket
         $packet->setId($id);
         $packet->code = self::CODE_RESPONSE;
         $packet->type = self::TYPE_EAP_MS_AUTH;
-        $packet->data = $chapPacket->__toString();
+        $packet->data = (string) $chapPacket;
 
-        return $packet->__toString();
+        return (string) $packet;
     }
 
     /**
      * Convert a raw EAP packet into a structure
      *
      * @param string $packet The EAP packet
-     * @return \Dapphp\Radius\EAPPacket  The parsed packet structure
+     * @return \Dapphp\Radius\EAPPacket|bool  The parsed packet structure
      */
     public static function fromString($packet)
     {
@@ -118,23 +119,25 @@ class EAPPacket
             return false;
         }
 
-        $p->type = ord(substr($packet, 4, 1));
+        $p->type = ord($packet[4]);
         $p->data = substr($packet, 5);
 
         return $p;
     }
-
+    
     /**
      * Set the ID of the EAP packet
-     * @param int $id The EAP packet ID
+     *
+     * @param  int  $id  The EAP packet ID
      * @return \Dapphp\Radius\EAPPacket Fluent interface
+     * @throws \Exception
      */
     public function setId($id = null)
     {
         if (is_null($id)) {
-            $this->id = mt_rand(0, 255);
+            $this->id = random_int(0, 255);
         } else {
-            $this->id = (int)$id;
+            $this->id = (int) $id;
         }
 
         return $this;
