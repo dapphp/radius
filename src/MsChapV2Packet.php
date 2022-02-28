@@ -71,7 +71,7 @@ class MsChapV2Packet
     public function __toString()
     {
         $packet = pack('C', $this->opcode) .
-                  chr($this->msChapId) .
+                  chr($this->msChapId ?? 0) .
                   "\x00\x00"; // temp length
 
         switch($this->opcode) {
