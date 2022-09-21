@@ -246,6 +246,7 @@ class Radius
         $this->attributesInfo[76] = array('Prompt', 'I');
         $this->attributesInfo[79] = array('EAP-Message', 'S');
         $this->attributesInfo[80] = array('Message-Authenticator', 'S');
+        $this->attributesInfo[95] = array('NAS-IPv6-Address', 'A');
 
         $this->identifierToSend = -1;
         $this->chapIdentifier   = 1;
@@ -310,6 +311,11 @@ class Radius
         return $this;
     }
 
+    const SERVER_CONN_IPV4 = 4;
+    const SERVER_CONN_IPV6 = 6;
+
+    private $chosenStack = 0;
+
     /**
      * Set the hostname or IP address of the RADIUS server to send requests to.
      *
@@ -318,7 +324,30 @@ class Radius
      */
     public function setServer($hostOrIp)
     {
-        $this->server = gethostbyname($hostOrIp);
+	if (filter_var($hostOrIp, FILTER_VALIDATE_IP) === false) {
+		$serverlist = $this->resolveHost($hostOrIp);
+		switch (count($serverlist)) {
+			case 0:
+				throw new Exception("Configured RADIUS server hostname does not resolve!");
+			case 1:
+				$this->chosenStack = array_key_first($serverlist);
+				$this->server = $serverlist[$this->chosenStack];
+				break;
+			case 2:
+				// so what do we take? IPv6 is the future...
+				$this->chosenStack = Radius::SERVER_CONN_IPV6;
+				$this->server = $serverlist[Radius::SERVER_CONN_IPV6];
+				break;
+			default:
+				throw new Exception("Unexpectedly many IP address families returned.");
+		}
+	} elseif (filter_var($hostOrIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            $this->chosenStack = Radius::SERVER_CONN_IPV6;
+            $this->server = $hostOrIp;
+        } else { 
+            $this->chosenStack = Radius::SERVER_CONN_IPV4;
+            $this->server = $hostOrIp;
+        } 
         return $this;
     }
 
@@ -552,29 +581,65 @@ class Radius
         return $this;
     }
 
+    private function resolveHost($hostname) {
+	$retval = [];
+	$a = dns_get_record($hostname, DNS_A);
+	$aaaa = dns_get_record($hostname, DNS_AAAA);
+	if ($a !== false) {
+		$retval[Radius::SERVER_CONN_IPV4] = $a[0]['ip'];
+	}
+	if ($aaaa !== false) {
+		$retval[Radius::SERVER_CONN_IPV6] = $aaaa[0]['ipv6'];
+	}
+	return $retval;
+    }
+
     /**
      * Sets the Network Access Server (NAS) IP address (the RADIUS client IP).
      *
      * @param string $hostOrIp  The hostname or IP address of the RADIUS client
      * @return self
      */
-    public function setNasIPAddress($hostOrIp = '')
-    {
-        if (0 < strlen($hostOrIp)) {
-            $this->nasIpAddress = gethostbyname($hostOrIp);
-        } else {
-            $hostOrIp = @php_uname('n');
-            if (empty($hostOrIp)) {
-                $hostOrIp = (isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : '';
-            }
-            if (empty($hostOrIp)) {
-                $hostOrIp = (isset($_SERVER['SERVER_ADDR'])) ? $_SERVER['SERVER_ADDR'] : '0.0.0.0';
-            }
+    public function setNasIPAddress($hostOrIp = '') {
+	switch ($this->chosenStack) {
+		case Radius::SERVER_CONN_IPV4:
+			$relevantFilter = FILTER_FLAG_IPV4;
+			$attribNumber = 4;
+			break;
+		case Radius::SERVER_CONN_IPV6:
+			$relevantFilter = FILTER_FLAG_IPV6;
+			$attribNumber = 95;
+			break;
+		default:
+			// server target not set yet, we don't know which stack to use
+			return $this;
+	}
 
-            $this->nasIpAddress = gethostbyname($hostOrIp);
-        }
-
-        $this->setAttribute(4, $this->nasIpAddress);
+	if (filter_var($hostOrIp, FILTER_VALIDATE_IP, $relevantFilter) !== false) {
+		// explicitly set IP address on matching stack - take it
+		$this->nasIpAddress = $hostOrIp;
+		$this->setAttribute($attribNumber, $this->nasIpAddress);
+	} elseif ($hostOrIp !== '') {
+		// need to resolve explicitly given hostname
+		$families = $this->resolveHost($hostOrIp);
+		if (isset($families[$this->chosenStack])) {
+			$this->setAttribute($attribNumber, $families[$this->chosenStack]);
+		}
+	} elseif ($hostOrIp === '') {
+		// guess from envvars. If we happen to be serving on the same stack
+		// that RADIUS needs, that's our IP
+		if (isset($_SERVER['SERVER_ADDR']) && filter_var($_SERVER['SERVER_ADDR'], FILTER_VALIDATE_IP, $relevantFilter)) {
+			$this->setAttribute($attribNumber, $_SERVER['SERVER_ADDR']);
+		} else {
+			// okay, last resort is to resolve from HTTP_HOST
+			$families = $this->resolveHost($_SERVER['HTTP_HOST']);
+              	                if (isset($families[$this->chosenStack])) {
+                      	                $this->setAttribute($attribNumber, $families[$this->chosenStack]);
+                              	}
+		}
+	}
+	// if we haven't called setAttribute() by now, we haven't found a match
+	// and should better not set NAS-IP*-Address at all
 
         return $this;
     }
@@ -832,16 +897,21 @@ class Radius
                     $temp = chr($type) . chr(2 + strlen($value)) . $value;
                     break;
                 case 'A':
-                    // Address, 32 bit value, most significant octet first.
-                    $ip = explode('.', $value);
-                    $temp = chr($type) . chr(6) . chr($ip[0]) . chr($ip[1]) . chr($ip[2]) . chr($ip[3]);
+                    if (filter_var($this->nasIpAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+                        // Address, 128 bit value, most significant octet first.
+                        $temp = chr($type) . chr(18) . inet_pton($value);
+                    } else {
+                        // Address, 32 bit value, most significant octet first.
+                        $ip = explode('.', $value);
+                        $temp = chr($type) . chr(6) . chr($ip[0]) . chr($ip[1]) . chr($ip[2]) . chr($ip[3]);
+                    }
                     break;
                 case 'I':
                     // Integer, 32 bit unsigned value, most significant octet first.
                     $temp = chr($type) . chr(6) .
-                            chr(intval(($value / (256 * 256 * 256))) % 256) .
-                            chr(intval(($value / (256 * 256))) % 256) .
-                            chr(intval(($value / (256))) % 256) .
+                            chr(($value / (256 * 256 * 256)) % 256) .
+                            chr(($value / (256 * 256)) % 256) .
+                            chr(($value / (256)) % 256) .
                             chr($value % 256);
                     break;
                 case 'D':
@@ -1104,8 +1174,6 @@ class Radius
             return false;
         }
 
-        $attributes = $this->getAttributesToSend(); // store base attributes
-
         foreach($serverList as $server) {
             $this->setServer($server);
 
@@ -1117,7 +1185,6 @@ class Radius
                 break; // access rejected
             } else {
                 /* timeout or other possible transient error; try next host */
-                $this->attributesToSend = $attributes; // reset base attributes
             }
         }
 
@@ -1205,7 +1272,7 @@ class Radius
                  ->setAttribute(79, $eapPacket)
                  ->setIncludeMessageAuthenticator();
 
-            $resp = $this->accessRequest('', '', 0, $state);
+            $resp = $this->accessRequest(null, null, 0, $state);
 
             if (!$resp) {
                 return false;
@@ -1220,19 +1287,13 @@ class Radius
             }
 
             $eap = EAPPacket::fromString($eap);
-        } elseif ($eap->type == EAPPacket::TYPE_MD5_CHALLENGE) {
-            // EAP type MD5, PPP CHAP protocol w/ MD5
-            $this->removeAttribute(79)
-                ->setChapPassword($password);
-
-            return $this->accessRequest($username);
         }
 
         // since we have check that we are not in PEAP method, we should be in EAP
         // so let's check this and return error if not
         if ($eap->type != EAPPacket::TYPE_EAP_MS_AUTH) {
             $this->errorCode    = 102;
-            $this->errorMessage = 'EAP type is not EAP_MS_AUTH or MD5_CHALLENGE in access response';
+            $this->errorMessage = 'EAP type is not EAP_MS_AUTH in access response';
             return false;
         }
 
@@ -1267,7 +1328,7 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        $this->accessRequest('', '', 0, $state);
+        $this->accessRequest(null, null, 0, $state);
 
         if ($this->errorCode) {
             return false;
@@ -1332,7 +1393,6 @@ class Radius
 
         // got a success response - send success acknowledgement
         $eapPacket = EAPPacket::eapSuccess($chapId + 1);
-        $state     = $this->getReceivedAttribute(24);
 
         $this->clearDataToSend()
              ->setPacketType(self::TYPE_ACCESS_REQUEST);
@@ -1341,7 +1401,7 @@ class Radius
              ->setAttribute(79, $eapPacket)
              ->setIncludeMessageAuthenticator();
 
-        return $this->accessRequest('', '', 0, $state);
+        return $this->accessRequest(null, null, 0, $state);
     }
 
     /**
@@ -1476,7 +1536,7 @@ class Radius
              ->setAttribute(79, $eapPacketSplit[2])
              ->setIncludeMessageAuthenticator();
 
-        $resp = $this->accessRequest('', '', 0, $state);
+        $resp = $this->accessRequest(null, null, 0, $state);
 
         if ($this->errorCode) {
             $this->errorMessage = 'Password change rejected; new password may not meet the password policy requirements';
@@ -1494,7 +1554,7 @@ class Radius
              ->setIncludeMessageAuthenticator();
 
         // returns true if password changed successfully
-        return $this->accessRequest('', '', 0, $state);
+        return $this->accessRequest(null, null, 0, $state);
     }
 
     /**
@@ -1522,8 +1582,6 @@ class Radius
             return false;
         }
 
-        $attributes = $this->getAttributesToSend(); // store base attributes
-
         foreach($serverList as $server) {
             $this->setServer($server);
 
@@ -1535,7 +1593,6 @@ class Radius
                 break; // access rejected
             } else {
                 /* timeout or other possible transient error; try next host */
-                $this->attributesToSend = $attributes; // reset base attributes
             }
         }
 
