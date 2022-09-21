@@ -246,6 +246,7 @@ class Radius
         $this->attributesInfo[76] = array('Prompt', 'I');
         $this->attributesInfo[79] = array('EAP-Message', 'S');
         $this->attributesInfo[80] = array('Message-Authenticator', 'S');
+        $this->attributesInfo[95] = array('NAS-IPv6-Address', 'A');
 
         $this->identifierToSend = -1;
         $this->chapIdentifier   = 1;
@@ -574,7 +575,11 @@ class Radius
             $this->nasIpAddress = gethostbyname($hostOrIp);
         }
 
-        $this->setAttribute(4, $this->nasIpAddress);
+        if (filter_var($this->nasIpAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            $this->setAttribute(95, $this->nasIpAddress);
+        } else {
+            $this->setAttribute(4, $this->nasIpAddress);
+        }
 
         return $this;
     }
@@ -832,9 +837,14 @@ class Radius
                     $temp = chr($type) . chr(2 + strlen($value)) . $value;
                     break;
                 case 'A':
-                    // Address, 32 bit value, most significant octet first.
-                    $ip = explode('.', $value);
-                    $temp = chr($type) . chr(6) . chr($ip[0]) . chr($ip[1]) . chr($ip[2]) . chr($ip[3]);
+                    if (filter_var($this->nasIpAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+                        // Address, 64 bit value, most significant octet first.
+                        $temp = chr($type) . chr(6) . inet_pton($value);
+                    } else {
+                        // Address, 32 bit value, most significant octet first.
+                        $ip = explode('.', $value);
+                        $temp = chr($type) . chr(6) . chr($ip[0]) . chr($ip[1]) . chr($ip[2]) . chr($ip[3]);
+                    }
                     break;
                 case 'I':
                     // Integer, 32 bit unsigned value, most significant octet first.
