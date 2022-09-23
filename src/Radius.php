@@ -623,17 +623,20 @@ class Radius
 		// need to resolve explicitly given hostname
 		$families = $this->resolveHost($hostOrIp);
 		if (isset($families[$this->chosenStack])) {
+			$this->nasIpAddress = $families[$this->chosenStack];
 			$this->setAttribute($attribNumber, $families[$this->chosenStack]);
 		}
 	} elseif ($hostOrIp === '') {
 		// guess from envvars. If we happen to be serving on the same stack
 		// that RADIUS needs, that's our IP
 		if (isset($_SERVER['SERVER_ADDR']) && filter_var($_SERVER['SERVER_ADDR'], FILTER_VALIDATE_IP, $relevantFilter)) {
+			$this->nasIpAddress = $_SERVER['SERVER_ADDR'];
 			$this->setAttribute($attribNumber, $_SERVER['SERVER_ADDR']);
 		} else {
 			// okay, last resort is to resolve from HTTP_HOST
 			$families = $this->resolveHost($_SERVER['HTTP_HOST']);
               	                if (isset($families[$this->chosenStack])) {
+					$this->nasIpAddress = $families[$this->chosenStack];
                       	                $this->setAttribute($attribNumber, $families[$this->chosenStack]);
                               	}
 		}
@@ -897,7 +900,7 @@ class Radius
                     $temp = chr($type) . chr(2 + strlen($value)) . $value;
                     break;
                 case 'A':
-                    if (filter_var($this->nasIpAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+                    if (filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
                         // Address, 128 bit value, most significant octet first.
                         $temp = chr($type) . chr(18) . inet_pton($value);
                     } else {
@@ -1103,6 +1106,7 @@ class Radius
         $packetData = $this->generateRadiusPacket();
 
         $conn = $this->sendRadiusRequest($packetData);
+
         if (!$conn) {
             $this->debugInfo(sprintf(
                 'Failed to send packet to %s; error: %s',
@@ -1608,8 +1612,13 @@ class Radius
     private function sendRadiusRequest($packetData)
     {
         $packetLen  = strlen($packetData);
+	$wrapServer = $this->server;
+	if ($this->chosenStack == Radius::SERVER_CONN_IPV6) {
+		// fsockopen wants extra square brackets around IPv6 addresses
+		$wrapServer = "[" . $wrapServer . "]";
+	}
 
-        $conn = @fsockopen('udp://' . $this->server, $this->authenticationPort, $errno, $errstr);
+        $conn = @fsockopen('udp://' . $wrapServer, $this->authenticationPort, $errno, $errstr);
         if (!$conn) {
             $this->errorCode    = $errno;
             $this->errorMessage = $errstr;
