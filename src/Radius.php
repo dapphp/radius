@@ -325,22 +325,22 @@ class Radius
     public function setServer($hostOrIp)
     {
 	if (filter_var($hostOrIp, FILTER_VALIDATE_IP) === false) {
-		$serverlist = $this->resolveHost($hostOrIp);
-		switch (count($serverlist)) {
-			case 0:
-				throw new Exception("Configured RADIUS server hostname does not resolve!");
-			case 1:
-				$this->chosenStack = array_key_first($serverlist);
-				$this->server = $serverlist[$this->chosenStack];
-				break;
-			case 2:
-				// so what do we take? IPv6 is the future...
-				$this->chosenStack = Radius::SERVER_CONN_IPV6;
-				$this->server = $serverlist[Radius::SERVER_CONN_IPV6];
-				break;
-			default:
-				throw new Exception("Unexpectedly many IP address families returned.");
-		}
+            $serverlist = $this->resolveHost($hostOrIp);
+            switch (count($serverlist)) {
+                case 0:
+                    throw new Exception("Configured RADIUS server hostname does not resolve!");
+                case 1:
+                    $this->chosenStack = array_key_first($serverlist);
+                    $this->server = $serverlist[$this->chosenStack];
+                    break;
+                case 2:
+                    // so what do we take? IPv6 is the future...
+                    $this->chosenStack = Radius::SERVER_CONN_IPV6;
+                    $this->server = $serverlist[Radius::SERVER_CONN_IPV6];
+                    break;
+                default:
+                    throw new Exception("Unexpectedly many IP address families returned.");
+            }
 	} elseif (filter_var($hostOrIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
             $this->chosenStack = Radius::SERVER_CONN_IPV6;
             $this->server = $hostOrIp;
@@ -600,46 +600,47 @@ class Radius
      * @param string $hostOrIp  The hostname or IP address of the RADIUS client
      * @return self
      */
-    public function setNasIPAddress($hostOrIp = '') {
-	switch ($this->chosenStack) {
-		case Radius::SERVER_CONN_IPV4:
-			$relevantFilter = FILTER_FLAG_IPV4;
-			$attribNumber = 4;
-			break;
-		case Radius::SERVER_CONN_IPV6:
-			$relevantFilter = FILTER_FLAG_IPV6;
-			$attribNumber = 95;
-			break;
-		default:
-			// server target not set yet, we don't know which stack to use
-			return $this;
+    public function setNasIPAddress($hostOrIp = '')
+    {
+        switch ($this->chosenStack) {
+            case Radius::SERVER_CONN_IPV4:
+                $relevantFilter = FILTER_FLAG_IPV4;
+                $attribNumber = 4;
+                break;
+            case Radius::SERVER_CONN_IPV6:
+                $relevantFilter = FILTER_FLAG_IPV6;
+                $attribNumber = 95;
+                break;
+            default:
+                // server target not set yet, we don't know which stack to use
+                return $this;
 	}
 
-	if (filter_var($hostOrIp, FILTER_VALIDATE_IP, $relevantFilter) !== false) {
-		// explicitly set IP address on matching stack - take it
-		$this->nasIpAddress = $hostOrIp;
-		$this->setAttribute($attribNumber, $this->nasIpAddress);
+        if (filter_var($hostOrIp, FILTER_VALIDATE_IP, $relevantFilter) !== false) {
+            // explicitly set IP address on matching stack - take it
+            $this->nasIpAddress = $hostOrIp;
+            $this->setAttribute($attribNumber, $this->nasIpAddress);
 	} elseif ($hostOrIp !== '') {
-		// need to resolve explicitly given hostname
-		$families = $this->resolveHost($hostOrIp);
-		if (isset($families[$this->chosenStack])) {
-			$this->nasIpAddress = $families[$this->chosenStack];
-			$this->setAttribute($attribNumber, $families[$this->chosenStack]);
-		}
-	} elseif ($hostOrIp === '') {
-		// guess from envvars. If we happen to be serving on the same stack
-		// that RADIUS needs, that's our IP
-		if (isset($_SERVER['SERVER_ADDR']) && filter_var($_SERVER['SERVER_ADDR'], FILTER_VALIDATE_IP, $relevantFilter)) {
-			$this->nasIpAddress = $_SERVER['SERVER_ADDR'];
-			$this->setAttribute($attribNumber, $_SERVER['SERVER_ADDR']);
-		} else {
-			// okay, last resort is to resolve from HTTP_HOST
-			$families = $this->resolveHost($_SERVER['HTTP_HOST']);
-              	                if (isset($families[$this->chosenStack])) {
-					$this->nasIpAddress = $families[$this->chosenStack];
-                      	                $this->setAttribute($attribNumber, $families[$this->chosenStack]);
-                              	}
-		}
+            // need to resolve explicitly given hostname
+            $families = $this->resolveHost($hostOrIp);
+            if (isset($families[$this->chosenStack])) {
+                $this->nasIpAddress = $families[$this->chosenStack];
+                $this->setAttribute($attribNumber, $families[$this->chosenStack]);
+            }
+        } elseif ($hostOrIp === '') {
+            // guess from envvars. If we happen to be serving on the same stack
+            // that RADIUS needs, that's our IP
+            if (isset($_SERVER['SERVER_ADDR']) && filter_var($_SERVER['SERVER_ADDR'], FILTER_VALIDATE_IP, $relevantFilter)) {
+                $this->nasIpAddress = $_SERVER['SERVER_ADDR'];
+                $this->setAttribute($attribNumber, $_SERVER['SERVER_ADDR']);
+            } else {
+                // okay, last resort is to resolve from HTTP_HOST
+                $families = $this->resolveHost($_SERVER['HTTP_HOST']);
+                if (isset($families[$this->chosenStack])) {
+                    $this->nasIpAddress = $families[$this->chosenStack];
+                    $this->setAttribute($attribNumber, $families[$this->chosenStack]);
+                }
+            }
 	}
 	// if we haven't called setAttribute() by now, we haven't found a match
 	// and should better not set NAS-IP*-Address at all
@@ -1612,11 +1613,11 @@ class Radius
     private function sendRadiusRequest($packetData)
     {
         $packetLen  = strlen($packetData);
-	$wrapServer = $this->server;
-	if ($this->chosenStack == Radius::SERVER_CONN_IPV6) {
-		// fsockopen wants extra square brackets around IPv6 addresses
-		$wrapServer = "[" . $wrapServer . "]";
-	}
+        $wrapServer = $this->server;
+        if ($this->chosenStack == Radius::SERVER_CONN_IPV6) {
+            // fsockopen wants extra square brackets around IPv6 addresses
+            $wrapServer = "[" . $wrapServer . "]";
+        }
 
         $conn = @fsockopen('udp://' . $wrapServer, $this->authenticationPort, $errno, $errstr);
         if (!$conn) {
