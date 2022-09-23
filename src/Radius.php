@@ -324,7 +324,7 @@ class Radius
      */
     public function setServer($hostOrIp)
     {
-	if (filter_var($hostOrIp, FILTER_VALIDATE_IP) === false) {
+        if (filter_var($hostOrIp, FILTER_VALIDATE_IP) === false) {
             $serverlist = $this->resolveHost($hostOrIp);
             switch (count($serverlist)) {
                 case 0:
@@ -341,7 +341,7 @@ class Radius
                 default:
                     throw new Exception("Unexpectedly many IP address families returned.");
             }
-	} elseif (filter_var($hostOrIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+        } elseif (filter_var($hostOrIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
             $this->chosenStack = Radius::SERVER_CONN_IPV6;
             $this->server = $hostOrIp;
         } else { 
@@ -581,7 +581,8 @@ class Radius
         return $this;
     }
 
-    private function resolveHost($hostname) {
+    private function resolveHost($hostname)
+    {
 	$retval = [];
 	$a = dns_get_record($hostname, DNS_A);
 	$aaaa = dns_get_record($hostname, DNS_AAAA);
@@ -614,13 +615,13 @@ class Radius
             default:
                 // server target not set yet, we don't know which stack to use
                 return $this;
-	}
+        }
 
         if (filter_var($hostOrIp, FILTER_VALIDATE_IP, $relevantFilter) !== false) {
             // explicitly set IP address on matching stack - take it
             $this->nasIpAddress = $hostOrIp;
             $this->setAttribute($attribNumber, $this->nasIpAddress);
-	} elseif ($hostOrIp !== '') {
+        } elseif ($hostOrIp !== '') {
             // need to resolve explicitly given hostname
             $families = $this->resolveHost($hostOrIp);
             if (isset($families[$this->chosenStack])) {
