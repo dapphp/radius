@@ -7,6 +7,9 @@
  * This Radius class is a radius client implementation in pure PHP
  * following the RFC 2865 rules (http://www.ietf.org/rfc/rfc2865.txt)
  *
+ * It also can be used for RFC 3576 dynamic authorization extensions
+ * to radius.
+ *
  * This class works with at least the following RADIUS servers:
  *  - Authenex Strong Authentication System (ASAS) with two-factor authentication
  *  - FreeRADIUS, a free Radius server implementation for Linux and *nix environments
@@ -90,6 +93,24 @@ class Radius
 
     /** @var int Access-Challenge packet type identifier */
     const TYPE_ACCESS_CHALLENGE    = 11;
+
+    /** @var int Disconnect-Request packet type identifier */
+    const TYPE_DISCONNECT_REQUEST  = 40;
+
+    /** @var int Disconnect-ACK packet type identifier */
+    const TYPE_DISCONNECT_ACK      = 41;
+
+    /** @var int Disconnect-NAK packet type identifier */
+    const TYPE_DISCONNECT_NAK      = 42;
+
+    /** @var int CoA-Request packet type identifier */
+    const TYPE_COA_REQUEST         = 43;
+
+    /** @var int CoA-ACK packet type identifier */
+    const TYPE_COA_ACK             = 44;
+
+    /** @var int CoA-NAK packet type identifier */
+    const TYPE_COA_NCK             = 45;
 
     /** @var int Reserved packet type */
     const TYPE_RESERVED            = 255;
@@ -197,6 +218,12 @@ class Radius
         $this->radiusPackets[11]  = 'Access-Challenge';
         $this->radiusPackets[12]  = 'Status-Server (experimental)';
         $this->radiusPackets[13]  = 'Status-Client (experimental)';
+        $this->radiusPackets[40]  = 'Disconnect-Request';
+        $this->radiusPackets[41]  = 'Disconnect-ACK';
+        $this->radiusPackets[42]  = 'Disconnect-NAK';
+        $this->radiusPackets[43]  = 'CoA-Request';
+        $this->radiusPackets[44]  = 'CoA-ACK';
+        $this->radiusPackets[45]  = 'CoA-NAK';
         $this->radiusPackets[255] = 'Reserved';
 
         $this->attributesInfo     = array();
@@ -1548,11 +1575,15 @@ class Radius
      * @param string $packetData  The raw, complete, RADIUS packet to send
      * @return boolean|resource   false if the packet failed to send, or a socket resource on success
      */
-    private function sendRadiusRequest($packetData)
+    private function sendRadiusRequest($packetData, $port=null)
     {
         $packetLen  = strlen($packetData);
+        if($port===null) $port=$this->authenticationPort;
 
-        $conn = @fsockopen('udp://' . $this->server, $this->authenticationPort, $errno, $errstr);
+        if ($this->debug) {
+            $this->debugInfo("Connect to {$this->server}:{$port}");
+        }
+        $conn = @fsockopen('udp://' . $this->server, $port, $errno, $errstr);
         if (!$conn) {
             $this->errorCode    = $errno;
             $this->errorMessage = $errstr;
@@ -1575,23 +1606,25 @@ class Radius
                     $this->server
                 )
             );
-            foreach($this->attributesToSend as $attrs) {
-                if (!is_array($attrs)) {
-                    $attrs = array($attrs);
-                }
+            if (is_array($this->attributesToSend)) {
+                foreach($this->attributesToSend as $attrs) {
+                    if (!is_array($attrs)) {
+                        $attrs = array($attrs);
+                    }
 
-                foreach($attrs as $attr) {
-                    $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
-                    $this->debugInfo(
-                        sprintf(
-                            'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
-                            ord(substr($attr, 0, 1)),
-                            $attrInfo[0],
-                            ord(substr($attr, 1, 1)) - 2,
-                            $attrInfo[1],
-                            $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
-                        )
-                    );
+                    foreach($attrs as $attr) {
+                        $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                        $this->debugInfo(
+                            sprintf(
+                                'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
+                                ord(substr($attr, 0, 1)),
+                                $attrInfo[0],
+                                ord(substr($attr, 1, 1)) - 2,
+                                $attrInfo[1],
+                                $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
+                            )
+                        );
+                    }
                 }
             }
         }
@@ -1766,20 +1799,22 @@ class Radius
         $attrContent = '';
         $offset      = null;
 
-        foreach($this->attributesToSend as $i => $attr) {
-            $len = strlen($attrContent);
+        if (is_array($this->attributesToSend)) {
+            foreach($this->attributesToSend as $i => $attr) {
+                $len = strlen($attrContent);
 
-            if (is_array($attr)) {
-                // vendor specific (could have multiple attributes)
-                $attrContent .= implode('', $attr);
-            } else {
-                if (ord($attr[0]) == 80) {
-                    // If Message-Authenticator is set, note offset so it can be updated
-                    $hasAuthenticator = true;
-                    $offset = $len + 2; // current length + type(1) + length(1)
+                if (is_array($attr)) {
+                    // vendor specific (could have multiple attributes)
+                    $attrContent .= implode('', $attr);
+                } else {
+                    if (ord($attr[0]) == 80) {
+                        // If Message-Authenticator is set, note offset so it can be updated
+                        $hasAuthenticator = true;
+                        $offset = $len + 2; // current length + type(1) + length(1)
+                    }
+    
+                    $attrContent .= $attr;
                 }
-
-                $attrContent .= $attr;
             }
         }
 
@@ -1800,6 +1835,56 @@ class Radius
             for ($i = 0; $i < strlen($messageAuthenticator); ++$i) {
                 $packetData[20 + $offset + $i] = $messageAuthenticator[$i];
             }
+        }
+
+        return $packetData;
+    }
+
+    /**
+     * Generate a RADIUS accounting packet based on the set attributes and
+     * properties. Generally, there is no need to call this function.  Use
+     * one of the accessRequest* functions.
+     *
+     * @return string  The RADIUS packet
+     */
+    public function generateRadiusAccountingPacket()
+    {
+        $attrContent = '';
+
+        if (is_array($this->attributesToSend)) {
+            foreach($this->attributesToSend as $i => $attr) {
+                $len = strlen($attrContent);
+
+                if (is_array($attr)) {
+                    // vendor specific (could have multiple attributes)
+                    $attrContent .= implode('', $attr);
+                } else {
+                    $attrContent .= $attr;
+                }
+            }
+        }
+
+        /*
+         * Accounting packets have different format than auth/request ones;
+         * because there is no User-Password attribute in an Accounting-Request
+         */
+
+        $attrLen    = strlen($attrContent);
+        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
+        $packetLen += 16; // Authenticator length
+        $packetLen += $attrLen; // Attributes
+
+        $packetData  = chr($this->radiusPacket);
+        $packetData .= pack('C', $this->getNextIdentifier());
+        $packetData .= pack('n', $packetLen);
+        $packetData .= pack('QQ', 0, 0); // 16 zero bytes authenticator
+        $packetData .= $attrContent;
+
+        $messageAuthenticator = md5($packetData.$this->secret, true); 
+        $this->setRequestAuthenticator($messageAuthenticator);
+
+        for ($i = 0; $i < strlen($messageAuthenticator); ++$i) {
+            $packetData[4 + $i] = $messageAuthenticator[$i];
         }
 
         return $packetData;
@@ -1949,5 +2034,125 @@ class Radius
         }
 
         return $value;
+    }
+
+    /**
+     * Issue a Disconnect-Request packet to the RADIUS server.
+     *
+     * @param int    $timeout   The timeout (in seconds) to wait for a response packet
+     * @return boolean          true if the server sent a CoA-Request packet, false otherwise
+     */
+    public function disconnectRequest($timeout = 0)
+    {
+        $this->clearDataReceived()
+             ->clearError()
+             ->setPacketType(self::TYPE_DISCONNECT_REQUEST);
+
+        if (intval($timeout) > 0) {
+            $this->setTimeout($timeout);
+        }
+
+        $packetData = $this->generateRadiusAccountingPacket();
+
+        $conn = $this->sendRadiusRequest($packetData,$this->accountingPort);
+        if (!$conn) {
+            $this->debugInfo(sprintf(
+                'Failed to send packet to %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        $receivedPacket = $this->readRadiusResponse($conn);
+        @fclose($conn);
+
+        if (!$receivedPacket) {
+            $this->debugInfo(sprintf(
+                'Error receiving response packet from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if (!$this->parseRadiusResponsePacket($receivedPacket)) {
+            $this->debugInfo(sprintf(
+                'Bad RADIUS response from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if ($this->radiusPacketReceived == self::TYPE_DISCONNECT_ACK) {
+            $this->errorCode    = 3;
+            $this->errorMessage = 'Disconnect rejected';
+        }
+
+        return (self::TYPE_DISCONNECT_ACK == ($this->radiusPacketReceived));
+    }
+
+    /**
+     * Issue a CoA-Request packet to the RADIUS server.
+     *
+     * @param int    $timeout   The timeout (in seconds) to wait for a response packet
+     * @return boolean          true if the server sent a CoA-Request packet, false otherwise
+     */
+    public function coaRequest($timeout = 0)
+    {
+        $this->clearDataReceived()
+             ->clearError()
+             ->setPacketType(self::TYPE_COA_REQUEST);
+
+        if (intval($timeout) > 0) {
+            $this->setTimeout($timeout);
+        }
+
+        $packetData = $this->generateRadiusAccountingPacket();
+
+        $conn = $this->sendRadiusRequest($packetData,$this->accountingPort);
+        if (!$conn) {
+            $this->debugInfo(sprintf(
+                'Failed to send packet to %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        $receivedPacket = $this->readRadiusResponse($conn);
+        @fclose($conn);
+
+        if (!$receivedPacket) {
+            $this->debugInfo(sprintf(
+                'Error receiving response packet from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if (!$this->parseRadiusResponsePacket($receivedPacket)) {
+            $this->debugInfo(sprintf(
+                'Bad RADIUS response from %s; error: %s',
+                $this->server,
+                $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if ($this->radiusPacketReceived == self::TYPE_COA_ACK) {
+            $this->errorCode    = 3;
+            $this->errorMessage = 'CoA rejected';
+        }
+
+        return (self::TYPE_COA_ACK == ($this->radiusPacketReceived));
     }
 }
