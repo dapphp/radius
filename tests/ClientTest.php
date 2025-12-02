@@ -312,4 +312,78 @@ class ClientTest extends TestCase
 
         $this->assertTrue($success);
     }
+
+    public function testCoaRequestPacket()
+    {
+        $expected = hex2bin('2b000047040c9334f368087d6e26edcbdab0dc5201066e656d6f04060a3201192c0f4130313132323333343435353637066925e6b35012791f0c663611ba2f04dd3934458582df');
+
+        $client = new Radius();
+        $client->setPacketType(Radius::TYPE_COA_REQUEST)
+            ->setUsername('nemo')
+            ->setNasIPAddress('10.50.1.25')
+            ->setAttribute(44, "A011223344556")  // Acct-Session-Id
+            ->setAttribute(55, 1764091571)       // Event-Timestamp
+            ->setIncludeMessageAuthenticator(true);
+
+        $packet = $client->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        $this->assertEquals($expected, $packet);
+
+    }
+
+    public function testDisconnectRequestPacket()
+    {
+        $expected = hex2bin('2801001c1b23624c3543ceba55f1be55a714ca5e01086d6368696261');
+        $authenticator = substr($expected, 4, 16);
+
+        $client = new Radius();
+        $client->getNextIdentifier();
+        $client->setPacketType(Radius::TYPE_DISCONNECT_REQUEST)
+            ->setUsername('mchiba')
+            ->setSecret('?');
+
+        $packet = $client->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        // Replace the authenticator calculated with the incorrect secret to the one in the example
+        $packet = substr($packet, 0, 4) . $authenticator . substr($packet, 20);
+
+        $this->assertEquals($expected, $packet);
+    }
+
+    public function testDisconnectRequestPacketWithAcctSessionId()
+    {
+        $expected = hex2bin('2801001ead0d8e5355b6bd02a0cbace64e3877bd2c0a3930323334353637');
+        $authenticator = substr($expected, 4,  16);
+        $client = new Radius();
+        $client->getNextIdentifier();
+        $client->setPacketType(Radius::TYPE_DISCONNECT_REQUEST)
+            ->setSecret('?')
+            ->setAttribute(44, '90234567');
+
+        $packet = $client->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        // Replace the authenticator calculated with the incorrect secret to the one in the example
+        $packet = substr($packet, 0, 4) . $authenticator . substr($packet, 20);
+
+        $this->assertEquals($expected, $packet);
+    }
+
+    public function testDisconnectRequestPacketWithFramedIPAddress()
+    {
+        $expected = hex2bin('2801001a0bda33fe765b05f0fd9cc32a2f6b518208060a000203');
+        $authenticator = substr($expected, 4,  16);
+
+        $client = new Radius();
+        $client->getNextIdentifier();
+        $client->setPacketType(Radius::TYPE_DISCONNECT_REQUEST)
+            ->setSecret('?')
+            ->setAttribute(8, '10.0.2.3');
+
+        $packet = $client->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        // Replace the authenticator calculated with the incorrect secret to the one in the example
+        $packet = substr($packet, 0, 4) . $authenticator . substr($packet, 20);
+
+        $this->assertEquals($expected, $packet);
+    }
 }

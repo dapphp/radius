@@ -110,11 +110,20 @@ class Radius
     const TYPE_COA_ACK             = 44;
 
     /** @var int CoA-NAK packet type identifier */
-    const TYPE_COA_NCK             = 45;
+    const TYPE_COA_NAK             = 45;
 
     /** @var int Reserved packet type */
     const TYPE_RESERVED            = 255;
 
+    /** @var string If calling generateRadiusPacket() directly for regular RADIUS requests, sets the Authenticator in
+     * the packet header to random bytes
+     */
+    const AUTH_REQUEST = 'request';
+
+    /** @var string If calling generateRadiusPacket() directly for Accounting requests, zero out Authenticator, compute
+     * MD5 over packet + secret
+     */
+    const AUTH_ACCOUNTING = 'accounting';
 
     /** @var string RADIUS server hostname or IP address */
     protected $server;
@@ -133,6 +142,9 @@ class Radius
 
     /** @var int Accounting port (default = 1813) */
     protected $accountingPort;
+
+    /** @var int Dynamic Authorization Port for RFC 5176 CoA and Disconnect requests (default = 3799) */
+    protected $dynamicAuthorizationPort = 3799;
 
     /** @var string Network Access Server (client) IP Address */
     protected $nasIpAddress;
@@ -266,6 +278,19 @@ class Radius
         $this->attributesInfo[37] = array('Framed-AppleTalk-Link', 'I');
         $this->attributesInfo[38] = array('Framed-AppleTalk-Network', 'I');
         $this->attributesInfo[39] = array('Framed-AppleTalk-Zone', 'S');
+        $this->attributesInfo[40] = array('Acct-Status-Type', 'I');
+        $this->attributesInfo[41] = array('Acct-Delay-Time', 'I');
+        $this->attributesInfo[42] = array('Acct-Input-Octets', 'I');
+        $this->attributesInfo[43] = array('Acct-Output-Octets', 'I');
+        $this->attributesInfo[44] = array('Acct-Session-Id', 'S');
+        $this->attributesInfo[45] = array('Acct-Authentic', 'I');
+        $this->attributesInfo[46] = array('Acct-Session-Time', 'I');
+        $this->attributesInfo[47] = array('Acct-Input-Packets', 'I');
+        $this->attributesInfo[48] = array('Acct-Output-Packets', 'I');
+        $this->attributesInfo[49] = array('Acct-Terminate-Cause', 'I');
+        $this->attributesInfo[50] = array('Acct-Multi-Session-Id', 'S');
+        $this->attributesInfo[51] = array('Acct-Link-Count', 'I');
+        $this->attributesInfo[55] = array('Event-Timestamp', 'I');
         $this->attributesInfo[60] = array('CHAP-Challenge', 'S');
         $this->attributesInfo[61] = array('NAS-Port-Type', 'I');
         $this->attributesInfo[62] = array('Port-Limit', 'I');
@@ -701,6 +726,32 @@ class Radius
         if ((intval($port) > 0) && (intval($port) < 65536))
         {
             $this->accountingPort = intval($port);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the RFC 5176 Dynamic Authorization port used for CoA and Disconnect requests
+     *
+     * @return int  The RFC 5176 Dynamic Authorization port
+     */
+    public function getDynamicAuthorizationPort()
+    {
+        return $this->dynamicAuthorizationPort;
+    }
+
+    /**
+     * Set the port number used for RFC 5176 Dynamic Authorizations (default = 3799)
+     *
+     * @param int $port  The port for sending CoA and disconnect request packets
+     * @return self
+     */
+    public function setDynamicAuthorizationPort($port)
+    {
+        if ((intval($port) > 0) && (intval($port) < 65536))
+        {
+            $this->dynamicAuthorizationPort = intval($port);
         }
 
         return $this;
@@ -1575,7 +1626,7 @@ class Radius
      * @param string $packetData  The raw, complete, RADIUS packet to send
      * @return boolean|resource   false if the packet failed to send, or a socket resource on success
      */
-    private function sendRadiusRequest($packetData, $port=null)
+    private function sendRadiusRequest($packetData, $port = null)
     {
         $packetLen  = strlen($packetData);
         if($port===null) $port=$this->authenticationPort;
@@ -1789,102 +1840,82 @@ class Radius
 
     /**
      * Generate a RADIUS packet based on the set attributes and properties.
-     * Generally, there is no need to call this function.  Use one of the accessRequest* functions.
+     * Generally, there is no need to call this function. Use one of the accessRequest*, accounting, or dynamic
+     * authorization functions.
      *
-     * @return string  The RADIUS packet
+     * @param string $authMode 'request' for RADIUS requests or 'accounting' for accounting requests.
+     *
+     * @return string The RADIUS packet
      */
-    public function generateRadiusPacket()
+    public function generateRadiusPacket(string $authMode = self::AUTH_REQUEST)
     {
-        $hasAuthenticator = false;
+        $includeMessageAuthenticator = false;
+
+        // Build attribute payload and detect if Message-Authenticator (80) was requested
         $attrContent = '';
-        $offset      = null;
-
         if (is_array($this->attributesToSend)) {
-            foreach($this->attributesToSend as $i => $attr) {
-                $len = strlen($attrContent);
-
+            foreach ($this->attributesToSend as $attr) {
                 if (is_array($attr)) {
-                    // vendor specific (could have multiple attributes)
+                    // vendor-specific (multiple attributes)
                     $attrContent .= implode('', $attr);
+                } elseif (ord($attr[0]) === 80) {
+                    // Caller requested Message-Authenticator; we’ll append the computed one later
+                    $includeMessageAuthenticator = true;
                 } else {
-                    if (ord($attr[0]) == 80) {
-                        // If Message-Authenticator is set, note offset so it can be updated
-                        $hasAuthenticator = true;
-                        $offset = $len + 2; // current length + type(1) + length(1)
-                    }
-    
                     $attrContent .= $attr;
                 }
             }
         }
 
-        $attrLen    = strlen($attrContent);
-        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
-        $packetLen += strlen($this->getRequestAuthenticator()); // Request-Authenticator
-        $packetLen += $attrLen; // Attributes
+        // Build the 20-byte packet header with the code, id, placeholder length, and authenticator
+        $packetData  = chr($this->radiusPacket);               // Code
+        $packetData .= pack('C', $this->getNextIdentifier());  // Identifier
+        $packetData .= pack('n', 0);                           // Length (placeholder for now)
 
-        $packetData  = chr($this->radiusPacket);
-        $packetData .= pack('C', $this->getNextIdentifier());
-        $packetData .= pack('n', $packetLen);
-        $packetData .= $this->getRequestAuthenticator();
+        if ($authMode === self::AUTH_REQUEST) {
+            // Access/Request: use request authenticator already set by the caller
+            $packetData .= $this->getRequestAuthenticator();
+        } elseif ($authMode === self::AUTH_ACCOUNTING) {
+            // Accounting: 16 zero bytes, replaced with MD5 checksum later
+            $packetData .= str_repeat("\x00", 16);
+        } else {
+            throw new \InvalidArgumentException('Unknown RADIUS authenticator mode: ' . $authMode);
+        }
+
+        // Add request attributes to the packet (without Message-Authenticator)
         $packetData .= $attrContent;
 
-        if ($hasAuthenticator && !is_null($offset)) {
+        // If Message-Authenticator is requested, append attribute 80 with 16 zero bytes
+        if ($includeMessageAuthenticator) {
+            // type(80) + length(18) + 16 zeroes
+            $packetData .= chr(80) . chr(18) . str_repeat("\x00", 16);
+        }
+
+        // Finalize length now that we know the total packet length
+        $length = pack('n', strlen($packetData));
+        $packetData[2] = $length[0];
+        $packetData[3] = $length[1];
+
+        // If Message-Authenticator is present, compute and insert HMAC-MD5 over the entire packet
+        //   - For access: it must include the real request authenticator
+        //   - For accounting: it must include 16 zero bytes in the authenticator (as it currently is)
+        if ($includeMessageAuthenticator) {
             $messageAuthenticator = hash_hmac('md5', $packetData, $this->secret, true);
-            // calculate packet hmac, replace hex 0's with actual hash
-            for ($i = 0; $i < strlen($messageAuthenticator); ++$i) {
-                $packetData[20 + $offset + $i] = $messageAuthenticator[$i];
+            // Replace the last 16 bytes (we appended MA at the very end)
+            for ($i = 0; $i < 16; ++$i) {
+                $packetData[-16 + $i] = $messageAuthenticator[$i];
             }
         }
 
-        return $packetData;
-    }
-
-    /**
-     * Generate a RADIUS accounting packet based on the set attributes and
-     * properties. Generally, there is no need to call this function.  Use
-     * one of the accessRequest* functions.
-     *
-     * @return string  The RADIUS packet
-     */
-    public function generateRadiusAccountingPacket()
-    {
-        $attrContent = '';
-
-        if (is_array($this->attributesToSend)) {
-            foreach($this->attributesToSend as $i => $attr) {
-                $len = strlen($attrContent);
-
-                if (is_array($attr)) {
-                    // vendor specific (could have multiple attributes)
-                    $attrContent .= implode('', $attr);
-                } else {
-                    $attrContent .= $attr;
-                }
+        // If accounting mode, compute and insert the real request authenticator over packet+secret
+        if ($authMode === self::AUTH_ACCOUNTING) {
+            $authenticator = md5($packetData . $this->secret, true);
+            // Keep for verifying response authenticator in replies
+            $this->setRequestAuthenticator($authenticator);
+            // Overwrite authenticator field at bytes [4..19]
+            for ($i = 0; $i < 16; ++$i) {
+                $packetData[4 + $i] = $authenticator[$i];
             }
-        }
-
-        /*
-         * Accounting packets have different format than auth/request ones;
-         * because there is no User-Password attribute in an Accounting-Request
-         */
-
-        $attrLen    = strlen($attrContent);
-        $packetLen  = 4; // Radius packet code + Identifier + Length high + Length low
-        $packetLen += 16; // Authenticator length
-        $packetLen += $attrLen; // Attributes
-
-        $packetData  = chr($this->radiusPacket);
-        $packetData .= pack('C', $this->getNextIdentifier());
-        $packetData .= pack('n', $packetLen);
-        $packetData .= pack('QQ', 0, 0); // 16 zero bytes authenticator
-        $packetData .= $attrContent;
-
-        $messageAuthenticator = md5($packetData.$this->secret, true); 
-        $this->setRequestAuthenticator($messageAuthenticator);
-
-        for ($i = 0; $i < strlen($messageAuthenticator); ++$i) {
-            $packetData[4 + $i] = $messageAuthenticator[$i];
         }
 
         return $packetData;
@@ -2052,9 +2083,9 @@ class Radius
             $this->setTimeout($timeout);
         }
 
-        $packetData = $this->generateRadiusAccountingPacket();
+        $packetData = $this->generateRadiusPacket(self::AUTH_ACCOUNTING);
 
-        $conn = $this->sendRadiusRequest($packetData,$this->accountingPort);
+        $conn = $this->sendRadiusRequest($packetData, $this->dynamicAuthorizationPort);
         if (!$conn) {
             $this->debugInfo(sprintf(
                 'Failed to send packet to %s; error: %s',
@@ -2088,9 +2119,9 @@ class Radius
             return false;
         }
 
-        if ($this->radiusPacketReceived == self::TYPE_DISCONNECT_ACK) {
+        if ($this->radiusPacketReceived == self::TYPE_DISCONNECT_NAK) {
             $this->errorCode    = 3;
-            $this->errorMessage = 'Disconnect rejected';
+            $this->errorMessage = 'Disconnect request failed (NAK)';
         }
 
         return (self::TYPE_DISCONNECT_ACK == ($this->radiusPacketReceived));
@@ -2112,9 +2143,9 @@ class Radius
             $this->setTimeout($timeout);
         }
 
-        $packetData = $this->generateRadiusAccountingPacket();
+        $packetData = $this->generateRadiusPacket(self::AUTH_ACCOUNTING);
 
-        $conn = $this->sendRadiusRequest($packetData,$this->accountingPort);
+        $conn = $this->sendRadiusRequest($packetData, $this->dynamicAuthorizationPort);
         if (!$conn) {
             $this->debugInfo(sprintf(
                 'Failed to send packet to %s; error: %s',
@@ -2148,9 +2179,9 @@ class Radius
             return false;
         }
 
-        if ($this->radiusPacketReceived == self::TYPE_COA_ACK) {
+        if ($this->radiusPacketReceived == self::TYPE_COA_NAK) {
             $this->errorCode    = 3;
-            $this->errorMessage = 'CoA rejected';
+            $this->errorMessage = 'CoA requested failed (NAK)';
         }
 
         return (self::TYPE_COA_ACK == ($this->radiusPacketReceived));
