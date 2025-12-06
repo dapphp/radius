@@ -691,4 +691,74 @@ class ClientTest extends TestCase
 
         $this->assertEquals($expected, $packet);
     }
+
+    public function testAccountingStartPacket()
+    {
+        $expected = '040000505ef3e51b37c8fea5ecac7f1fb05a5adc3706693225ba2806000000012c0c53455353494f4e5f494406060000000201066e656d6f04060a32011950127c0d915b80767f18e5e2ff16dec138ae';
+
+        $client = new Radius();
+        $client->setSecret('xyzzy5461')
+            ->setAttribute('Event-Timestamp', 1764894138)
+            ->setAttribute('Acct-Status-Type', 1)
+            ->setAttribute('Acct-Session-Id', 'SESSION_ID')
+            ->setAttribute('Service-Type', 2)
+            ->setUsername('nemo')
+            ->setNasIPAddress('10.50.1.25')
+            ->setIncludeMessageAuthenticator(true);
+
+        $packet = $client->setPacketType(Radius::TYPE_ACCOUNTING_REQUEST)
+            ->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        $this->assertEquals($expected, bin2hex($packet));
+    }
+
+    public function testAccountingInterimUpdatePacket()
+    {
+        $expected = '0400006e6bb25cb08253fc2c8555cd6b318bdc783706693225ba2806000000032c0c53455353494f4e5f494406060000000201066e656d6f04060a3201192e060000012c2a06000025262b060000125c2f060000005630060000002f5012b1f2a571c4576972731cc537f683e0a5';
+
+        $client = new Radius();
+        $client->setSecret('xyzzy5461')
+            ->setAttribute('Event-Timestamp', 1764894138)
+            ->setAttribute('Acct-Status-Type', 3)  // Interim-Update
+            ->setAttribute('Acct-Session-Id', 'SESSION_ID')
+            ->setAttribute('Service-Type', 2)
+            ->setUsername('nemo')
+            ->setNasIPAddress('10.50.1.25')
+            ->setAttribute('Acct-Session-Time', 300)
+            ->setAttribute('Acct-Input-Octets', 9510)
+            ->setAttribute('Acct-Output-Octets', 4700)
+            ->setAttribute('Acct-Input-Packets', 86)
+            ->setAttribute('Acct-Output-Packets', 47)
+            ->setIncludeMessageAuthenticator(true);
+
+        $packet = $client->setPacketType(Radius::TYPE_ACCOUNTING_REQUEST)
+            ->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        $this->assertEquals($expected, bin2hex($packet));
+    }
+
+    public function testAccountingStopPacket()
+    {
+        $expected = '0400006e6ba0589b1c1d5a430aeb88e2d8c040573706693225ba2806000000022c0c53455353494f4e5f494406060000000201066e656d6f04060a3201192e060000020b2a0600002ec02b06000470c02f06000000bb3006000011c350129ef6ddca319a8ae00541d4e151495338';
+
+        $client = new Radius();
+        $client->setSecret('xyzzy5461')
+            ->setAttribute('Event-Timestamp', 1764894138)
+            ->setAttribute('Acct-Status-Type', 2)
+            ->setAttribute('Acct-Session-Id', 'SESSION_ID')
+            ->setAttribute('Service-Type', 2)
+            ->setUsername('nemo')
+            ->setNasIPAddress('10.50.1.25')
+            ->setAttribute('Acct-Session-Time', 523)
+            ->setAttribute('Acct-Input-Octets', 11968)
+            ->setAttribute('Acct-Output-Octets', 291008)
+            ->setAttribute('Acct-Input-Packets', 187)
+            ->setAttribute('Acct-Output-Packets', 4547)
+            ->setIncludeMessageAuthenticator(true);
+
+        $packet = $client->setPacketType(Radius::TYPE_ACCOUNTING_REQUEST)
+            ->generateRadiusPacket(Radius::AUTH_ACCOUNTING);
+
+        $this->assertEquals($expected, bin2hex($packet));
+    }
 }

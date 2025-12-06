@@ -2728,6 +2728,56 @@ class Radius
         return $value;
     }
 
+    public function accountingRequest()
+    {
+        $this->clearDataReceived()
+            ->clearError()
+            ->setPacketType(self::TYPE_ACCOUNTING_REQUEST);
+
+        $packetData = $this->generateRadiusPacket(self::AUTH_ACCOUNTING);
+
+        $conn = $this->sendRadiusRequest($packetData, $this->accountingPort);
+        if (!$conn) {
+            $this->debugInfo(sprintf(
+                    'Failed to send packet to %s; error: %s',
+                    $this->server,
+                    $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        $receivedPacket = $this->readRadiusResponse($conn);
+        @fclose($conn);
+
+        if (!$receivedPacket) {
+            $this->debugInfo(sprintf(
+                    'Error receiving response packet from %s; error: %s',
+                    $this->server,
+                    $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if (!$this->parseRadiusResponsePacket($receivedPacket)) {
+            $this->debugInfo(sprintf(
+                    'Bad RADIUS response from %s; error: %s',
+                    $this->server,
+                    $this->getErrorMessage())
+            );
+
+            return false;
+        }
+
+        if ($this->radiusPacketReceived != self::TYPE_ACCOUNTING_RESPONSE) {
+            $this->errorCode    = 3;
+            $this->errorMessage = 'Response packet from RADIUS is not valid';
+        }
+
+        return (self::TYPE_ACCOUNTING_RESPONSE == ($this->radiusPacketReceived));
+    }
+
     /**
      * Issue a Disconnect-Request packet to the RADIUS server.
      *
