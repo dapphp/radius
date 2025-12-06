@@ -713,7 +713,7 @@ class Radius
 
     /**
      * Set the User-Password for PAP authentication.
-     * Do not use this if you will be using CHAP-MD5, MS-CHAP v1 or MS-CHAP v2 passwords.
+     * Do not use this if you will be using CHAP-MD5, MS-CHAP v1, or MS-CHAP v2 passwords.
      *
      * @param string $password  The plain text password for authentication
      * @return self
@@ -866,11 +866,58 @@ class Radius
             $chap->challenge = $challenge;
         }
 
-        $response = "\x00\x01" . str_repeat ("\0", 24) . $chap->ntChallengeResponse();
+        $response = pack('C', $chap->chapid) // Ident
+            . "\x01"                         // Flags
+            . str_repeat("\0", 24)           // LM-Response
+            . $chap->ntChallengeResponse();  // NT-Response
 
         $this->setIncludeMessageAuthenticator();
         $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 11, $chap->challenge);
         $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 1, $response);
+
+        return $this;
+    }
+
+    /**
+     * Sets the MS-CHAPv2 password for authentication by generating the MS-CHAP2 Response.
+     *
+     * @param string $username The username for authentication
+     * @param string $password The password associated with the username
+     * @since 3.1.0
+     * @return self
+     */
+    public function setMsChapV2Password($username, $password)
+    {
+        /*
+         * Notes:
+         * - MS-CHAP-Challenge (VSA 11) MUST be 16 bytes: the Authenticator Challenge.
+         * - MS-CHAP2-Response (VSA 25) MUST be 50 bytes structured as:
+         *     1 byte Ident, 1 byte Flags (0), 16 bytes Peer-Challenge,
+         *     8 bytes reserved (zeros), 24 bytes NT-Response.
+         * - The NT-Response depends on Username, Peer-Challenge, and Authenticator-Challenge.
+         */
+
+        $chap = new \Crypt_CHAP_MSv2;
+        $chap->chapid   = mt_rand(1, 255);
+        $chap->username = $username;
+        $chap->password = $password;
+
+        // Build the NT-Response (24 bytes) using username, peerChallenge, and authChallenge
+        $ntResponse = $chap->challengeResponse();
+
+        // Build the 50-byte MS-CHAP2-Response attribute value per RFC 2548 Section 2.3.3
+        $mschap2Response =
+            chr($chap->chapid) .        // Ident
+            chr(0x00) .                 // Flags (0)
+            $chap->peerChallenge .      // 16 bytes
+            str_repeat("\x00", 8) .     // 8 bytes reserved
+            $ntResponse;                // 24 bytes NT-Response
+
+        // MS-CHAP-Challenge (type 11) must be the 16-byte Authenticator Challenge
+        $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 11, $chap->authChallenge);
+
+        // MS-CHAP2-Response (type 25) is the 50-byte structure built above
+        $this->setVendorSpecificAttribute(VendorId::MICROSOFT, 25, $mschap2Response);
 
         return $this;
     }

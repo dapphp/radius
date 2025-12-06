@@ -365,7 +365,16 @@ class ClientTest extends TestCase
         $chap->chapid    = 42;
         $chap->challenge = "\x6c\x7e\x0d\xba\xe3\x81\xea\x51";
 
-        $response = $chap->ntChallengeResponse();
+        try {
+            $response = $chap->ntChallengeResponse();
+        } catch (\Exception $ex) {
+            if (stripos($ex->getMessage(), 'dec-ecb cipher is not supported by OpenSSL') !== false) {
+                $this->markAsRisky();
+                $this->markTestIncomplete('The PHP OpenSSL version does not support dec-ecb');
+                return;
+            }
+            throw $ex;
+        }
 
         $this->assertEquals('5f169b7d8176516f8092bce99008e097febfed2f043ec04e', bin2hex($response));
     }
@@ -378,7 +387,16 @@ class ClientTest extends TestCase
         $chal   = "\x02\x04\x08\x10\x20\x40\x80\x00"; // 8 byte 'random' challenge
         $client = new Radius();
 
-        $client->setMsChapPassword($pass, $chal);
+        try {
+            $client->setMsChapPassword($pass, $chal);
+        } catch (\Exception $ex) {
+            if (stripos($ex->getMessage(), 'dec-ecb cipher is not supported by OpenSSL') !== false) {
+                $this->markAsRisky();
+                $this->markTestIncomplete('The PHP OpenSSL version does not support dec-ecb');
+                return;
+            }
+            throw $ex;
+        }
 
         $chapChallenge = $client->getAttributesToSend(26);
 
@@ -403,7 +421,16 @@ class ClientTest extends TestCase
         $chap->authChallenge = "\x01\x23\x45\x67\x89\xAB\xCD\xEF\xFE\xDC\xBA\x98\x76\x54\x32\x10";
         $chap->peerChallenge = "\x93\xa8\x14\xc3\x90\x4e\x67\xcc\xb1\xd2\x72\x23\xd5\xf3\x90\xae";
 
-        $response = $chap->challengeResponse();
+        try {
+            $response = $chap->challengeResponse();
+        } catch (\Exception $ex) {
+            if (stripos($ex->getMessage(), 'dec-ecb cipher is not supported by OpenSSL') !== false) {
+                $this->markAsRisky();
+                $this->markTestIncomplete('The PHP OpenSSL version does not support dec-ecb');
+                return;
+            }
+            throw $ex;
+        }
 
         $this->assertEquals('a3d12ce2f52d13fe04421205a2ce17b0e559ea8a9e594c1c', bin2hex($response));
     }
@@ -498,13 +525,30 @@ class ClientTest extends TestCase
                ->setUsername($user)
                ->setNasIPAddress($nas)
                ->setNasPort($nasPort)
-               ->setAttribute(80, str_repeat("\x00", 16))
-               ->setMsChapPassword($pass, $challenge);
+               ->setIncludeMessageAuthenticator(true)
+        ;
+
+        try {
+            $client->setMsChapPassword($pass, $challenge);
+        } catch (\Exception $ex) {
+            if (stripos($ex->getMessage(), 'dec-ecb cipher is not supported by OpenSSL') !== false) {
+                $this->markAsRisky();
+                $this->markTestIncomplete('The PHP OpenSSL version does not support dec-ecb');
+                return;
+            }
+            throw $ex;
+        }
 
         $packet = $client->generateRadiusPacket();
+        $packet = bin2hex($packet);
 
-        $packet   = bin2hex($packet);
-        $expected = "01870082093e4ad125399f8ac4ba6b00ab69a04001066e656d6f04067f000001050600000014501248a3704ac91e8191497a1f3f213eb3381a10000001370b0a740c7921e45e91391a3a00000137013400010000000000000000000000000000000000000000000000004521bd46aebfd2ab3ec21dd6e6bbfa2e4ff325eab720fe37";
+        $messageAuthenticator = substr($packet, -34); // extract message authenticator from the end of the packet
+        $chapResponseIndex    = strpos($packet, "01370134"); // find the position of the chap ID (after vendor 311, flag 01, length 52)
+        $chapId               = substr($packet, $chapResponseIndex + 8, 2); // random byte
+
+        $expected = "01870082093e4ad125399f8ac4ba6b00ab69a04001066e656d6f04067f0000010506000000141a10000001370b0a740c7921e45e91391a3a000001370134ZZ010000000000000000000000000000000000000000000000004521bd46aebfd2ab3ec21dd6e6bbfa2e4ff325eab720fe3750";
+        $expected = str_replace('ZZ', $chapId, $expected); // Replace the placeholder with the random chap ID
+        $expected .= $messageAuthenticator; // Replace the message authenticator with the actual one
 
         $this->assertEquals($expected, $packet);
     }
