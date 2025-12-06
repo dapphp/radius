@@ -150,19 +150,19 @@ class Radius
     protected $server;
 
     /** @var string Shared secret with the RADIUS server */
-    protected $secret;
+    protected $secret = '';
 
     /** @var string RADIUS suffix (default is '') */
-    protected $suffix;
+    protected $suffix = '';
 
     /** @var int Timeout for receiving UDP response packets (default = 5 seconds) */
-    protected $timeout;
+    protected $timeout = 5;
 
     /** @var int Authentication port (default = 1812) */
-    protected $authenticationPort;
+    protected $authenticationPort = 1812;
 
     /** @var int Accounting port (default = 1813) */
-    protected $accountingPort;
+    protected $accountingPort = 1813;
 
     /** @var int Dynamic Authorization Port for RFC 5176 CoA and Disconnect requests (default = 3799) */
     protected $dynamicAuthorizationPort = 3799;
@@ -173,8 +173,6 @@ class Radius
     /** @var string NAS port. Physical port of the NAS authenticating the user */
     protected $nasPort;
 
-    /** @var string Encrypted password, as described in RFC 2865 */
-    protected $encryptedPassword;
 
     /** @var int Request-Authenticator, 16 octets random number */
     protected $requestAuthenticator;
@@ -183,7 +181,7 @@ class Radius
     protected $responseAuthenticator;
 
     /** @var string Username to send to the RADIUS server */
-    protected $username;
+    protected $username = '';
 
     /** @var string Password for authenticating with the RADIUS server (before encryption) */
     protected $password;
@@ -191,29 +189,29 @@ class Radius
     /** @var int The CHAP identifier for CHAP-Password attributes */
     protected $chapIdentifier;
 
-    /** @var string Identifier field for the packet to be sent */
-    protected $identifierToSend;
+    /** @var int Identifier field for the packet to be sent */
+    protected $identifierToSend = -1;
 
     /** @var string Identifier field for the received packet */
     protected $identifierReceived;
 
     /** @var int RADIUS packet type (1=Access-Request, 2=Access-Accept, etc) */
-    protected $radiusPacket;
+    protected $radiusPacket = 0;
 
     /** @var int Packet type received in response from RADIUS server */
-    protected $radiusPacketReceived;
+    protected $radiusPacketReceived = 0;
 
     /** @var array List of RADIUS attributes to send */
-    protected $attributesToSend;
+    protected $attributesToSend = [];
 
     /** @var array List of attributes received in response */
-    protected $attributesReceived;
+    protected $attributesReceived = [];
 
     /** @var bool Whether or not to enable debug output */
-    protected $debug;
+    protected $debug = false;
 
     /** @var array RADIUS attributes info array */
-    protected $attributesInfo;
+    protected $attributesInfo = [];
 
     /** @var array Mapping of RADIUS attribute names to numbers */
     protected $attributesNamesMap = [];
@@ -222,10 +220,10 @@ class Radius
     protected $radiusPackets;
 
     /** @var int The error code from the last operation */
-    protected $errorCode;
+    protected $errorCode = 0;
 
     /** @var string The error message from the last operation */
-    protected $errorMessage;
+    protected $errorMessage = '';
 
     /** @var string[] Data types for encoding attributes - RFC 8044 */
     protected $radiusDataTypes = [
@@ -298,13 +296,20 @@ class Radius
         $this->identifierToSend = -1;
         $this->chapIdentifier   = 1;
 
+        if (!empty($radiusHost)) {
+            $this->setServer($radiusHost);
+        }
+        if (!empty($sharedSecret)) {
+            $this->setSecret($sharedSecret);
+        }
+        if (!empty($radiusSuffix)) {
+            $this->setRadiusSuffix($radiusSuffix);
+        }
+
         $this->generateRequestAuthenticator()
-             ->setServer($radiusHost)
-             ->setSecret($sharedSecret)
              ->setAuthenticationPort($authenticationPort)
              ->setAccountingPort($accountingPort)
-             ->setTimeout($timeout)
-             ->setRadiusSuffix($radiusSuffix);
+             ->setTimeout($timeout);
 
         $this->clearError()
              ->clearDataToSend()
