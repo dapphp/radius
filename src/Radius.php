@@ -691,8 +691,7 @@ class Radius
      */
     public function setUsername($username = '')
     {
-        if (false === strpos($username, '@'))
-        {
+        if (false === strpos($username, '@') && !empty($this->suffix)) {
             $username .= $this->suffix;
         }
 
