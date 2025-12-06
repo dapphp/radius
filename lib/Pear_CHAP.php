@@ -310,6 +310,10 @@ class Crypt_CHAP_MSv1 extends Crypt_CHAP
 
         if (extension_loaded('openssl') && $this->useMcrypt === false) {
             // added openssl routines for dapphp/radius
+            if (!in_array('des-ecb', openssl_get_cipher_methods())) {
+                throw new \Exception('dec-ecb cipher is not supported by OpenSSL');
+            }
+
             $key   = $this->_desAddParity(substr($hash, 0, 7));
             $resp1 = openssl_encrypt($this->challenge, 'des-ecb', $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
 
