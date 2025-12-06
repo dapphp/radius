@@ -17,13 +17,15 @@
 
 **Dapphp\Radius** is a pure PHP RADIUS client for authenticating users against
 a RADIUS server in PHP.  It currently supports basic RADIUS auth using PAP,
-CHAP (MD5), MSCHAP v1, and EAP-MSCHAP v2.  The current 2.5.x branch is tested
-to work with the following RADIUS servers:
+CHAP (MD5), MSCHAP v1, MSCHAP v2, and EAP-MSCHAP v2, accounting (RFC 2866), and
+Dynamic Authorization CoA and Disconnect requests (RFC 5176).
+
+The library has been tested to work with the following RADIUS servers:
 
 - Microsoft Windows Server 2019 Network Policy Server
 - Microsoft Windows Server 2016 Network Policy Server
 - Microsoft Windows Server 2012 Network Policy Server
-- FreeRADIUS 2 and above
+- FreeRADIUS 2, 3, 3.2
 
 PAP authentication has been tested on:
 
@@ -43,6 +45,8 @@ versions that have mcrypt without openssl support, then mcrypt is used.
 The recommended way to install `dapphp/radius` is using [Composer](https://getcomposer.org).
 If you are already using composer, simple run `composer require dapphp/radius` or add
 `dapphp/radius` to your composer.json file's `require` section.
+
+For PHP 7.3 and later use the 3.x branch, and use the 2.x branch for PHP 7.2 and earlier.
 
 Standalone installation is also supported and a SPL autoloader is provided.
 (Don't use the standalone autoloader if you're using Composer!).
@@ -215,7 +219,7 @@ The following types are supported:
 
 ## Requirements:
 
-* PHP 5.3 or greater
+* PHP 7.3, 8.x
 
 ## TODO:
 
@@ -228,7 +232,7 @@ The following types are supported:
     (http://www.sysco.ch/)
     All rights reserved.
 
-    Copyright (c) 2018, Drew Phillips
+    Copyright (c) 2016-2026, Drew Phillips
     (https://drew-phillips.com)
 
     Pure PHP radius class is free software; you can redistribute it and/or

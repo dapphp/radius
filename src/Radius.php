@@ -32,7 +32,7 @@
  *   (http://www.sysco.ch/)
  *   All rights reserved.
  *
- *   Copyright (c) 2016, Drew Phillips
+ *   Copyright (c) 2016-2026, Drew Phillips
  *   (https://drew-phillips.com)
  *
  *   This file is part of the Pure PHP radius class
@@ -54,14 +54,13 @@
  *
  * @author: SysCo/al
  * @author: Drew Phillips <drew@drew-phillips.com>
+ * @license LGPL-3.0-or-later
  * @since CreationDate: 2008-01-04
  * @copyright (c) 2008 by SysCo systemes de communication sa
- * @copyright (c) 2016 by Drew Phillips
- * @version 2.5.1
- * @link http://developer.sysco.ch/php/
- * @link developer@sysco.ch
+ * @copyright (c) 2016-2026 by Drew Phillips
  * @link https://github.com/dapphp/radius
  * @link drew@drew-phillips.com
+ * @link http://developer.sysco.ch/php/
  */
 
 namespace Dapphp\Radius;
