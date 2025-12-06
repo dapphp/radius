@@ -639,14 +639,23 @@ class Radius
     }
 
     /**
-     * Set the hostname or IP address of the RADIUS server to send requests to.
+     * Set the hostname or IP address of the RADIUS server to send requests to. If a hostname is supplied, the IP address
+     * and protocol stack used are dependent on your system and DNS resolver.
      *
-     * @param string $hostOrIp  The hostname or IP address of the RADIUS server
+     * @param string $hostOrIp  The hostname or IP (v4 or v6) address of the RADIUS server to use
      * @return self
+     *
+     * @see self::accessRequestList() For a method that will try multiple IP addresses and/or hostnames
      */
     public function setServer($hostOrIp)
     {
-        $this->server = gethostbyname($hostOrIp);
+        if (filter_var($hostOrIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            // IPv6 addresses must be enclosed with []'s in fsockopen
+            $this->server = '[' . $hostOrIp . ']';
+        } else {
+            // Set the IP address or hostname of the RADIUS server
+            $this->server = $hostOrIp;
+        }
         return $this;
     }
 
@@ -1771,6 +1780,9 @@ class Radius
             );
 
             return false;
+        } elseif (empty($serverList)) {
+            $this->errorCode    = 128;
+            $this->errorMessage = 'server list passed to accessRequestList was empty';
         }
 
         $attributes = $this->getAttributesToSend(); // store base attributes
@@ -2189,6 +2201,9 @@ class Radius
             );
 
             return false;
+        } elseif (empty($serverList)) {
+            $this->errorCode    = 128;
+            $this->errorMessage = 'server list passed to accessRequestEapMsChapV2List was empty';
         }
 
         $attributes = $this->getAttributesToSend(); // store base attributes
