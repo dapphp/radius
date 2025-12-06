@@ -81,9 +81,38 @@ Example:
 
 	// set server, secret, and basic attributes
 	$client->setServer('12.34.56.78') // RADIUS server address
-	       ->setSecret('radius shared secret')
-	       ->setNasIpAddress('10.0.1.2') // NAS server address
-	       ->setAttribute(32, 'login');  // NAS identifier
+		->setSecret('radius shared secret')
+		->setNasIpAddress('10.0.1.2')
+		->setAttribute('NAS-Identifier, 'login')
+		->setAttribute('NAS-Port', 3);
+
+	// IPv6 address attributes
+	$client->setAttribute('NAS-IPv6-Address', '2001:5a8:0:1::40b');
+
+	// IPv6 prefix attributes
+	$client->setAttribute('Framed-IPv6-Prefix', '2001:db8:85a3:1::/64');
+	// or, a complete address with prefix length works the same
+	$client->setAttribute('Framed-IPv6-Prefix', '2001:0db8:85a3:0001:000a:8a2e:0370:7334/64');
+
+	// Data types in Radius (RFC 8044) and custom or non-built in attributes
+	$client->addRadiusAttribute(250, 'Reserved-Attr-Test1', Radius::DATA_TYPE_STRING)
+		->addRadiusAttribute(251, 'Reserved-Attr-Test2', Radius::DATA_TYPE_IPV4ADDR)
+		->addRadiusAttribute(252, 'Reserved-Attr-Test3', Radius::DATA_TYPE_TIME)
+		->addRadiusAttribute(253, 'Reserved-Attr-Test4', Radius::DATA_TYPE_CONCAT)
+		->addRadiusAttribute(249, 'Reserved-Attr-Test5', Radius::DATA_TYPE_IFID);
+
+	$strval = "This is a test string.`~1@3.?,/><][{}\|\\=+-_0)9(8*7&6^5%4\$3#2@1!";
+	$testTime = strtotime('1998-01-01 00:00:01');
+	$concat = str_repeat('A', 253) . str_repeat('B', 253) . str_repeat('C', 84);
+	$testIfId = 0x0253a1fffe2c831f;
+
+	$client->setAttribute('Reserved-Attr-Test1', $strval)
+		->setAttribute('Reserved-Attr-Test2', '10.9.8.7')
+		->setAttribute('Reserved-Attr-Test3', $testTime)
+		->setAttribute('Reserved-Attr-Test4', $concat)
+		->setAttribute('Reserved-Attr-Test5', $testIfId)
+	;
+
 
 	// PAP authentication; returns true if successful, false otherwise
 	$authenticated = $client->accessRequest($username, $password);
@@ -96,20 +125,53 @@ Example:
 	$client->setMSChapPassword($password); // set ms chap password (uses openssl or mcrypt)
 	$authenticated = $client->accessRequest($username);
 
+	// MSCHAP v2 authentication (non-EAP)
+	$client->setMsChapV2Password($username, $password);
+	$authenticated = $client->accessRequest($username);
+
 	// EAP-MSCHAP v2 authentication
 	$authenticated = $client->accessRequestEapMsChapV2($username, $password);
 
+	// Check authentication result
 	if ($authenticated === false) {
-	    // false returned on failure
-	    echo sprintf(
-	        "Access-Request failed with error %d (%s).\n",
-	        $client->getErrorCode(),
-	        $client->getErrorMessage()
-	    );
+		// false returned on failure
+		echo sprintf(
+			"Access-Request failed with error %d (%s).\n",
+			$client->getErrorCode(),
+			$client->getErrorMessage()
+		);
 	} else {
-	    // access request was accepted - client authenticated successfully
-	    echo "Success!  Received Access-Accept response from RADIUS server.\n";
+		// access request was accepted - client authenticated successfully
+		echo "Success!  Received Access-Accept response from RADIUS server.\n";
+		if (!empty($reply = $client->getReceivedAttribute('Reply-Message')) {
+			echo "Reply: $reply\n";
+		}
 	}
+
+## Supported data types
+
+[RFC 8044](https://www.rfc-editor.org/rfc/rfc8044.html) defines consistent names and data types for RADIUS attribute
+values. Version 3.1.0 added support for most data types and for mapping new attributes to these types.
+
+The following types are supported:
+
+* 1: integer - `Radius::DATA_TYPE_INTEGER`
+* 2: enum - `Radius::DATA_TYPE_ENUM`
+* 3: time - `Radius::DATA_TYPE_TIME`
+* 4: text - `Radius::DATA_TYPE_TEXT`
+* 5: string - `Radius::DATA_TYPE_STRING`
+* 6: concat - `Radius::DATA_TYPE_CONCAT`
+* 7: ifid - `Radius::DATA_TYPE_IFID`
+* 8: ipv4addr - `Radius::DATA_TYPE_IPV4ADDR`
+* 9: ipv6addr - `Radius::DATA_TYPE_IPV6ADDR`
+* 10: ipv6prefix - `Radius::DATA_TYPE_IPV6PREFIX`
+* 11: ipv4prefix - `Radius::DATA_TYPE_IPV4PREFIX`
+* 12: integer64 - `Radius::DATA_TYPE_INTEGER64`
+* 13: tlv - **UNSUPPORTED** `Radius::DATA_TYPE_TLV`
+* 14: vsa - `Radius::DATA_TYPE_VSA`
+* 15: extended - **UNSUPPORTED** `Radius::DATA_TYPE_EXTENDED`
+* 16: long-extended - **UNSUPPORTED** `Radius::DATA_TYPE_LONG_EXTENDED`
+* 17: evs - **UNSUPPORTED** `Radius::DATA_TYPE_LONG_EVS`
 
 ## Advanced Usage:
 
@@ -129,11 +191,18 @@ Example:
 
 	// Setting vendor specific attributes
 	// Many vendor IDs are available in \Dapphp\Radius\VendorId
-	// e.g. \Dapphp\Radius\VendorId::MICROSOFT
+	// e.g. \Dapphp\Radius\VendorId::MIKROTIK
 	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $rawValue);
 
+	// Setting a vendor-specific attribute with a non-string data type
+	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $ipv4addr, Radius::DATA_TYPE_IPV4ADDR);
+	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $ipv6addr, Radius::DATA_TYPE_IPV6ADDR);
+	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $int64, Radius::DATA_TYPE_INTEGER64);
+
 	// Retrieving attributes from RADIUS responses after receiving a failure or success response
-	$value = $client->getAttribute($attributeId);
+	$value = $client->getAttribute('Error-Cause');
+	$reply = $client->getAttribute('Reply-Message');
+	$ipv6addr = $client->getAttribute('Framed-IPv6-Address');
 
 	// Get an array of all received attributes
 	$attributes = getReceivedAttributes();
@@ -150,10 +219,7 @@ Example:
 
 ## TODO:
 
-- Set attributes by name, rather than number
-- Vendor specific attribute dictionaries?
-- Test with more implementations and confirm working
-- Accounting?
+- Vendor specific attribute dictionaries
 
 ## Copyright:
 

@@ -9,9 +9,19 @@ use PHPUnit\Framework\TestCase;
 
 class ClientTest extends TestCase
 {
-    public function testAttributes()
+    public function testSetAttributes()
     {
         $client = new Radius();
+
+        $client->setAttribute(1, '');
+        $attr = $client->getAttributesToSend(1);
+        $this->assertEquals('', $attr);
+        $client->resetAttributes();
+
+        $client->setAttribute(1, "\xce\xba\xe1\xbd\xb9\xcf\x83\xce\xbc\xce\xb5");
+        $attr = $client->getAttributesToSend(1);
+        $this->assertEquals("κόσμε", $attr);
+        $client->resetAttributes();
 
         // string value test
         $test   = 'this is a test';
@@ -34,6 +44,95 @@ class ClientTest extends TestCase
         $client->removeAttribute(5);
         $attr   = $client->getAttributesToSend(5);
         $this->assertEquals(null, $attr);
+
+        $client->setAttribute(95, '2001:5a8:0:1::40b');
+        $attr = $client->getAttributesToSend(95);
+        $this->assertEquals('2001:5a8:0:1::40b', $attr);
+        $client->removeAttribute(95);
+
+        $client->setAttribute(55, 802598400);
+        $attr = $client->getAttributesToSend(55);
+        $this->assertEquals(802598400, $attr);
+        $client->removeAttribute(55);
+
+        if (PHP_INT_SIZE > 4) {
+            $client->addRadiusAttribute(254, 'Test-Integer64', 'integer64');
+            $client->setAttribute(254, 0x1234567887654321);
+            $attr = $client->getAttributesToSend(254);
+            $this->assertEquals(0x1234567887654321, $attr);
+        }
+    }
+
+    public function testSetAttributesByName()
+    {
+        // String
+        $client = new Radius();
+        $client->setAttribute('User-Name', 'nemo');
+        $attr = $client->getAttributesToSend()[0];
+        $this->assertEquals(1, ord(substr($attr, 0, 1)));  // Attribute type 1 = username
+        $this->assertEquals(6, ord(substr($attr, 1, 1)));
+        $this->assertEquals('nemo', substr($attr, 2));
+        $client->resetAttributes();
+
+        // ipv4addr
+        $ipv4addr = '10.100.1.111';
+        $client->setAttribute('NAS-IP-Address', $ipv4addr);
+        $ip = explode('.', $ipv4addr);
+        $attr = $client->getAttributesToSend()[0];
+        $this->assertEquals(4, ord(substr($attr, 0, 1)));  // Attribute type 4 = Nas-IP-Address
+        $this->assertEquals(6, ord(substr($attr, 1, 1)));
+        $this->assertEquals(chr($ip[0]) . chr($ip[1]) . chr($ip[2]) . chr($ip[3]), substr($attr, 2));
+        $client->resetAttributes();
+
+        // ipv4prefix
+        $ipv4addr = '10.172.42.1';
+        $ipv4prefix = '20';
+        $ipv4prefix = $ipv4addr . '/' . $ipv4prefix;
+        $attr = $client->encodeRadiusAttribute(155, $ipv4prefix, Radius::DATA_TYPE_IPV4PREFIX);
+        $this->assertEquals(155, ord(substr($attr, 0, 1)));
+        $this->assertEquals(8, ord(substr($attr, 1, 1)));
+        $this->assertEquals(0, ord(substr($attr, 2, 1)));
+        $this->assertEquals(20, ord(substr($attr, 3, 1)));
+        $this->assertEquals('10.172.32.0', inet_ntop(substr($attr, 4)));
+
+        // integer
+        $client->setAttribute('Session-Timeout', 21600);
+        $attr = $client->getAttributesToSend()[0];
+        $this->assertEquals(27, ord(substr($attr, 0, 1)));  // Attribute type 27 = Session-Timeout
+        $this->assertEquals(6, ord(substr($attr, 1, 1)));
+        $this->assertEquals(21600, unpack('N', substr($attr, 2, 4))[1]);
+        $client->resetAttributes();
+
+        // ipv6addr
+        $ipv6addr = '2001:db8:85a3::8a2e:370:7334';
+        $client->setAttribute('NAS-IPv6-Address', $ipv6addr);
+        $attr = $client->getAttributesToSend()[0];
+        $this->assertEquals(95, ord(substr($attr, 0, 1)));  // Attribute type 95 = NAS-IPv6-Address
+        $this->assertEquals(18, ord(substr($attr, 1, 1)));
+        $this->assertEquals($ipv6addr, inet_ntop(substr($attr, 2, 16)));
+        $client->resetAttributes();
+
+        // ipv6prefix
+        $ipv6addr   = '2001:0db8:85a3:0001:000a:8a2e:0370:7334';
+        $prefixLen  = 64;
+        $ipv6prefix = $ipv6addr .'/' . $prefixLen;
+        $client->setAttribute('Framed-IPv6-Prefix', $ipv6prefix);
+        $attr = $client->getAttributesToSend()[0];
+        $this->assertEquals(97, ord(substr($attr, 0, 1)));  // Attribute type 97 = Framed-IPv6-Prefix
+        $this->assertEquals(2 + 1 + 1 + (16 - (128 - $prefixLen) / 8), ord(substr($attr, 1, 1)));
+        $this->assertEquals(0, ord(substr($attr, 2, 1)));  // Reserved bit
+        $this->assertEquals($prefixLen, ord(substr($attr, 3, 1)));
+        $this->assertEquals('2001:db8:85a3:1::', inet_ntop(substr($attr, 4) . str_repeat("\x00", 16 - (128 - $prefixLen) / 8)));
+        $client->resetAttributes();
+
+        if (PHP_INT_SIZE > 4) {
+            // integer64
+            $client->setAttribute('Framed-Interface-Id', 0x1234567887654321);
+            $attr = $client->getAttributesToSend()[0];
+            $this->assertEquals(96, ord(substr($attr, 0, 1)));  // Attribute type 96 = Framed-Interface-Id
+            $this->assertEquals(10, ord(substr($attr, 1, 1)));
+            $this->assertEquals(0x1234567887654321, unpack('J', substr($attr, 2, 8))[1]);
+        }
     }
 
     public function testGetAttributes()
@@ -67,6 +166,168 @@ class ClientTest extends TestCase
         $this->assertEquals($username, $client->getAttributesToSend(1));
         $this->assertEquals($nasIp, $client->getAttributesToSend(4));
         $this->assertEquals($nasPort, $client->getAttributesToSend(5));
+    }
+
+    public function testAddRadiusAttribute()
+    {
+        $client = new Radius();
+
+        $client->addRadiusAttribute(250, 'Reserved-Attr-Test', Radius::DATA_TYPE_STRING)
+            ->addRadiusAttribute(251, 'Reserved-Attr-Test2', Radius::DATA_TYPE_IPV4ADDR)
+            ->addRadiusAttribute(252, 'Reserved-Attr-Test3', Radius::DATA_TYPE_TIME)
+            ->addRadiusAttribute(253, 'Reserved-Attr-Test4', Radius::DATA_TYPE_CONCAT)
+            ->addRadiusAttribute(249, 'Reserved-Attr-Test5', Radius::DATA_TYPE_IFID);
+        ;
+
+        $testStr = "This is a test string.`~1@3.?,/><][{}\|\\=+-_0)9(8*7&6^5%4\$3#2@1!";
+        $concatStringTest = str_repeat('A', 253) . str_repeat('B', 253) . str_repeat('C', 84);
+        $testTime = strtotime('1998-01-01 00:00:01');
+        $testIfId = 0x0253a1fffe2c831f;
+
+        $client->setAttribute(250, $testStr)
+            ->setAttribute(253, $concatStringTest)
+            ->setAttribute(251, '10.9.8.7')
+            ->setAttribute(252, $testTime)
+            ->setAttribute(249, $testIfId)
+        ;
+
+        $attr = $client->getAttributesToSend(253);
+        $this->assertEquals($concatStringTest, $attr);
+
+        $packet = $client->generateRadiusPacket();
+        $attrs  = substr($packet, 20);
+
+        // string
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data = substr($attrs, 2, $len - 2);
+
+        $this->assertEquals(250, $type);
+        $this->assertEquals(strlen($testStr), $len - 2);
+        $this->assertEquals($testStr, $data);
+
+        // concat string
+        $attrs = substr($attrs, $len);
+
+        // attr 1/3
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data = substr($attrs, 2, $len - 2);
+        $attrs = substr($attrs, $len);
+
+        $this->assertEquals(253, $type);
+        $this->assertEquals(253, $len - 2);
+
+        // attr 2/3
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data .= substr($attrs, 2, $len - 2);
+        $attrs = substr($attrs, $len);
+
+        $this->assertEquals(253, $type);
+        $this->assertEquals(253, $len - 2);
+
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data .= substr($attrs, 2, $len - 2);
+        $attrs = substr($attrs, $len);
+
+        $this->assertEquals(253, $type);
+        $this->assertEquals(84, $len - 2);
+        $this->assertEquals($concatStringTest, $data);
+
+        // ipv4addr
+
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data = substr($attrs, 2, $len - 2);
+
+        $this->assertEquals(251, $type);
+        $this->assertEquals(4, $len - 2);
+        $this->assertEquals('10.9.8.7', inet_ntop($data));
+        $attrs = substr($attrs, $len);
+
+        // time
+
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data = substr($attrs, 2, $len - 2);
+
+        $this->assertEquals(252, $type);
+        $this->assertEquals(4, $len - 2);
+        $this->assertEquals($testTime, array_values(unpack('N', $data))[0]);
+        $attrs = substr($attrs, $len);
+
+        // ifid
+        $type = ord(substr($attrs, 0, 1));
+        $len  = ord(substr($attrs, 1, 1));
+        $data = substr($attrs, 2, $len - 2);
+
+        $this->assertEquals(249, $type);
+        $this->assertEquals(8, $len - 2);
+        $this->assertEquals($testIfId, array_values(unpack('J', $data))[0]);
+        $attrs = substr($attrs, $len);
+
+    }
+
+    public function testVendorSpecificAttribute()
+    {
+        $client = new Radius();
+
+        $client->setVendorSpecificAttribute(VendorId::MIKROTIK, 9, "69");
+        $this->assertEquals(1, count($client->getAttributesToSend()));
+
+        $this->assertEquals(26, ord(substr($client->getAttributesToSend()[0][0], 0, 1)));
+        $it = $client->getAttributesToSend(26, 0);
+        $this->assertNotNull($it);
+        $decoded = $client->decodeVendorSpecificContent($it)[0];
+        $this->assertEquals(VendorId::MIKROTIK, $decoded[0]);
+        $this->assertEquals(9, $decoded[1]);
+        $this->assertEquals("69", $decoded[2]);
+
+
+        $client->setVendorSpecificAttribute(VendorId::MIKROTIK, 10, "420");
+        $this->assertEquals(1, count($client->getAttributesToSend()));
+        $this->assertEquals(26, ord(substr($client->getAttributesToSend()[0][1], 0, 1)));
+        $it = $client->getAttributesToSend(26, 1);
+        $this->assertNotNull($it);
+
+        $decoded = $client->decodeVendorSpecificContent($it)[0];
+        $this->assertEquals(VendorId::MIKROTIK, $decoded[0]);
+        $this->assertEquals(10, $decoded[1]);
+        $this->assertEquals("420", $decoded[2]);
+
+        $client->resetAttributes();
+
+        $client->setVendorSpecificAttribute(VendorId::ALCATEL_LUCENT_AAA, 11, "1.2.3.4", 'ipv4addr');
+        $attr = $client->getAttributesToSend()[0][0];
+
+        $this->assertEquals(26, ord(substr($attr, 0, 1)));  // type 26
+        $this->assertEquals(12, ord(substr($attr, 1, 1)));  // length
+        $this->assertEquals(VendorId::ALCATEL_LUCENT_AAA, unpack('N', (substr($attr, 2, 4)))[1]);
+        $this->assertEquals(11, ord(substr($attr, 6, 1)));  // vendor type
+        $this->assertEquals(2 + 4, ord(substr($attr, 7, 1)));  // vendor length
+        $this->assertEquals('1.2.3.4', inet_ntop(substr($attr, 8)));      // value
+
+        $client->setVendorSpecificAttribute(\Dapphp\Radius\VendorId::MIKROTIK, 10, "8.4.2.1", 'ipv4addr');  // Host-IP
+        $attr = $client->getAttributesToSend()[0][1];
+
+        $this->assertEquals(26, ord(substr($attr, 0, 1)));  // type 26
+        $this->assertEquals(12, ord(substr($attr, 1, 1)));  // length
+        $this->assertEquals(VendorId::MIKROTIK, unpack('N', (substr($attr, 2, 4)))[1]);
+        $this->assertEquals(10, ord(substr($attr, 6, 1)));  // vendor type
+        $this->assertEquals(2 + 4, ord(substr($attr, 7, 1)));  // vendor length
+        $this->assertEquals('8.4.2.1', inet_ntop(substr($attr, 8)));      // value
+
+        $client->setVendorSpecificAttribute(\Dapphp\Radius\VendorId::MIKROTIK, 13, 1192921436, 'integer');
+        $attr = $client->getAttributesToSend()[0][2];
+        $this->assertEquals(26, ord(substr($attr, 0, 1)));  // type 26
+        $this->assertEquals(12, ord(substr($attr, 1, 1)));  // length
+        $this->assertEquals(VendorId::MIKROTIK, unpack('N', (substr($attr, 2, 4)))[1]);
+        $this->assertEquals(13, ord(substr($attr, 6, 1)));  // vendor type
+        $this->assertEquals(2 + 4, ord(substr($attr, 7, 1)));  // vendor length
+        $this->assertEquals(1192921436, unpack('N', substr($attr, 8))[1]);      // value
+
     }
 
     public function testEncryptedPassword()

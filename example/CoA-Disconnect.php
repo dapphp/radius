@@ -23,8 +23,8 @@ $radius->setServer($server)        // IP or hostname of RADIUS server
 echo "Sending CoA request to $server with username $user\n";
 $response = $radius->setNasIPAddress('10.50.1.25')
     ->setUsername($user)
-    ->setAttribute(44, "A011223344556")     // Acct-Session-Id
-    ->setAttribute(55, time())              // Event-Timestamp
+    ->setAttribute('Acct-Session-Id', "A011223344556")
+    ->setAttribute('Event-Timestamp', time())
     ->setVendorSpecificAttribute(\Dapphp\Radius\VendorId::MIKROTIK, 8, "0/0")
     ->setIncludeMessageAuthenticator(true)  // Include optional message authenticator
     ->coaRequest();                         // Send the CoA request
@@ -46,11 +46,11 @@ echo "Sending Disconnect-Request to $server with username $user\n";
 $response = $radius->resetAttributes()
     ->setNasIPAddress('10.50.1.25')
     ->setUsername($user)
-    ->setAttribute(44, "A011223344556")     // Acct-Session-Id
-    ->setAttribute(49, 1)                   // Acct-Terminate-Cause = User request
-    ->setAttribute(55, time())              // Event-Timestamp
-    ->setIncludeMessageAuthenticator(true)  // Include optional message authenticator
-    ->disconnectRequest();                  // Send the disconnect request
+    ->setAttribute('Acct-Session-Id', "A011223344556")
+    ->setAttribute('Acct-Terminate-Cause', 1)  // User request
+    ->setAttribute('Event-Timestamp', time())
+    ->setIncludeMessageAuthenticator(true)     // Include optional message authenticator
+    ->disconnectRequest();                     // Send the disconnect request
 
 if ($response === false) {
     // false returned on failure

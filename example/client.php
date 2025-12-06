@@ -19,7 +19,8 @@ $radius = new \Dapphp\Radius\Radius();
 $radius->setServer($server)        // IP or hostname of RADIUS server
        ->setSecret($secret)       // RADIUS shared secret
        ->setNasIpAddress('127.0.0.1')  // IP or hostname of NAS (device authenticating user)
-       ->setAttribute(32, 'vpn')       // NAS identifier
+       ->setAttribute('NAS-Identifier', 'vpn')
+       ->setIncludeMessageAuthenticator(true)
        ->setDebug((bool)$debug);                  // Enable debug output to screen/console
 
 // Send access request for a user with username = 'username' and password = 'password!'
@@ -35,4 +36,8 @@ if ($response === false) {
 } else {
     // access request was accepted - client authenticated successfully
     echo "Success!  Received Access-Accept response from RADIUS server.\n";
+
+    if (!empty($reply = $radius->getReceivedAttribute('Reply-Message'))) {
+        echo "Reply-Message: $reply\n";
+    }
 }
