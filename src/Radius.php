@@ -2252,6 +2252,11 @@ class Radius
 
                     foreach($attrs as $attr) {
                         $attrInfo = $this->getAttributesInfo(ord(substr($attr, 0, 1)));
+                        $value = $this->decodeRadiusAttribute(substr($attr, 2), ord(substr($attr, 0, 1)));
+                        // Match for most non-printable chars somewhat taking multibyte chars into account
+                        if (preg_match('/[^\x09-\x0d\x1b\x20-\xff]/', $value) === 1) {
+                            $value = '0x' . bin2hex($value);
+                        }
                         $this->debugInfo(
                             sprintf(
                                 'Attribute %d (%s), length (%d), format %s, value <em>%s</em>',
@@ -2259,7 +2264,7 @@ class Radius
                                 $attrInfo[0],
                                 ord(substr($attr, 1, 1)) - 2,
                                 $attrInfo[1],
-                                $this->decodeAttribute(substr($attr, 2), ord(substr($attr, 0, 1)))
+                                $value
                             )
                         );
                     }
@@ -2389,25 +2394,35 @@ class Radius
                 $attrLength   = intval(ord(substr($attrContent, 1, 1)));
                 $attrValueRaw = substr($attrContent, 2, $attrLength - 2);
                 $attrContent  = substr($attrContent, $attrLength);
-                $attrValue    = $this->decodeAttribute($attrValueRaw, $attrType);
+                $attrValue    = $this->decodeRadiusAttribute($attrValueRaw, $attrType);
 
                 $attr = $this->getAttributesInfo($attrType);
                 if (26 == $attrType) {
                     $vendorArr = $this->decodeVendorSpecificContent($attrValue);
                     foreach($vendorArr as $vendor) {
+                        $value = $vendor[2];
+                        // Match for most non-printable chars somewhat taking multibyte chars into account
+                        if (preg_match('/[^\x09-\x0d\x1b\x20-\xff]/', $value) === 1) {
+                            $value = '0x' . bin2hex($value);
+                        }
                         $this->debugInfo(
                             sprintf(
                                 'Attribute %d (%s), length %d, format %s, Vendor-Id: %d, Vendor-type: %s, Attribute-specific: %s',
                                 $attrType, $attr[0], $attrLength - 2,
-                                $attr[1], $vendor[0], $vendor[1], $vendor[2]
+                                $attr[1], $vendor[0], $vendor[1], $value
                             )
                         );
                     }
                 } else {
+                    $value = $attrValue;
+                    // Match for most non-printable chars somewhat taking multibyte chars into account
+                    if (preg_match('/[^\x09-\x0d\x1b\x20-\xff]/', $value) === 1) {
+                        $value = '0x' . bin2hex($value);
+                    }
                     $this->debugInfo(
                         sprintf(
                             'Attribute %d (%s), length %d, format %s, value <em>%s</em>',
-                            $attrType, $attr[0], $attrLength - 2, $attr[1], $attrValue
+                            $attrType, $attr[0], $attrLength - 2, $attr[1], $value
                         )
                     );
                 }
