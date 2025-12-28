@@ -4,16 +4,16 @@
 <a href="https://packagist.org/packages/dapphp/radius"><img src="https://poser.pugx.org/dapphp/radius/v/stable" alt="Latest Stable Version"></a>
 </p>
 
-## Name:
+## Name
 
-**Dapphp\Radius** - A pure PHP RADIUS client based on the SysCo/al implementation
+**Dapphp\Radius** – A pure PHP RADIUS client based on the SysCo/al implementation
 
-## Author:
+## Author
 
 * Drew Phillips <drew@drew-phillips.com>
 * SysCo/al <developer@sysco.ch> (http://developer.sysco.ch/php/)
 
-## Description:
+## Description
 
 **Dapphp\Radius** is a pure PHP RADIUS client for authenticating users against
 a RADIUS server in PHP.  It currently supports basic RADIUS auth using PAP,
@@ -40,7 +40,7 @@ PAP authentication has been tested on:
 The PHP openssl extension is required if using MSCHAP v1 or v2.  For older PHP
 versions that have mcrypt without openssl support, then mcrypt is used.
 
-## Installation:
+## Installation
 
 The recommended way to install `dapphp/radius` is using [Composer](https://getcomposer.org).
 If you are already using composer, simple run `composer require dapphp/radius` or add
@@ -55,7 +55,7 @@ To install standalone, download the release archive and extract to a location
 on your server.  In your application, `require_once 'radius/autoload.php';` and
 then you can use the class.
 
-## Examples:
+## Examples
 
 See the `examples/` directory for working examples. The RADIUS server address, secret, and credentials are read from
 environment variables and default to:
@@ -71,7 +71,7 @@ Example:
 
     RADIUS_SERVER_ADDR=10.0.100.1 RADIUS_USER=radtest php example/client.php -v
 
-## Synopsis:
+## Synopsis
 
 	<?php
 
@@ -177,33 +177,103 @@ The following types are supported:
 * 16: long-extended - **UNSUPPORTED** `Radius::DATA_TYPE_LONG_EXTENDED`
 * 17: evs - **UNSUPPORTED** `Radius::DATA_TYPE_LONG_EVS`
 
-## Advanced Usage:
+## Advanced Usage
 
-	// Authenticating against a RADIUS cluster (each server needs the same secret).
-	// Each server in the list is tried until auth success or failure.  The
-	// next server is tried on timeout or other error.
-	// Set the secret and any required attributes first.
+This section provides additional information and examples for advanced usage of the RADIUS client.
+
+### Authenticating against a RADIUS cluster
+
+For clustered setups with more than one RADIUS server, use the `accessRequestList` method to send authentication
+requests to multiple servers in a failover configuration. This ensures that if one server is unavailable, the client can
+attempt authentication with another server in the list. Each server in the list is tried until authentication is
+accepted or rejected. The client secret must be the same for all servers in the list.
+
+	// Try each server in the list until acceptance or rejection. Set the secret and any required attributes first.
 
 	$servers = [ 'server1.radius.domain', 'server2.radius.domain' ];
 	// or
 	$servers = gethostbynamel("radius.site.domain"); // gets list of IPv4 addresses to a given host
 
+    // shuffle($servers); // optionally, randomize the order of servers
+
 	$authenticated = $client->accessRequestList($servers, $username, $password);
 	// or
 	$authenticated = $client->accessRequestEapMsChapV2List($servers, $username, $password);
 
+### Re-using the same client to send multiple access requests
 
-	// Setting vendor specific attributes
-	// Many vendor IDs are available in \Dapphp\Radius\VendorId
-	// e.g. \Dapphp\Radius\VendorId::MIKROTIK
+In situations where the same RADIUS client needs to send multiple access requests to a RADIUS server, a random
+request authenticator should be generated for each request to ensure uniqueness and prevent replay attacks. Use this
+when sending multiple access requests with the same client before calling `accessRequest` again:
+
+    $client->generateRequestAuthenticator();
+
+This is done automatically if using the `accessRequestList` or `accessRequestEapMsChapV2List` methods.
+
+### IPv6 Server Support
+
+If the operating system is configured for IPv6 and the RADIUS server supports IPv6, the client can send requests to the
+server using IPv6 addresses or hostnames that resolve to IPv6 addresses.
+
+To explicitly set the server address to an IPv6 address, specify the address when creating the client or using the
+`setServer()` method. Note, IPv6 addresses must be enclosed in square brackets. If the v6 address is not enclosed in
+square brackets, they will be added automatically.
+
+    $client = new Radius('[fd00:b5a6:6c19:6bf7::1001]');
+    // or
+    $client->setServer('[fd00:b5a6:6c19:6bf7::1001]');
+
+### Mixing IPv4 and IPv6 addresses in a clustered setup
+
+In situations where the RADIUS hostname resolves to both IPv4 and IPv6 addresses, use `accessRequestList()` to send
+requests to each address type. Either supply a list of explicit IPv4 and IPv6 addresses, or, use the following code to
+automatically resolve the hostname to both address types:
+
+    // List of specific addresses
+    $servers = [
+        'radius.local', // Tries radius.local, depending on how the DNS resolves it
+        '10.0.100.100', // Next address in the list
+        'fd00:b5a6:6c19:6bf7:10:0:100:100', // Next address in the list
+        '[fd00:b5a6:6c19:6bf7:10:0:200:200]', // Next address, square bracket notation
+    ];
+
+    // Resolve hostname to multiple IPv4 and/or IPv6 addresses
+    // If the 'sockets' extension is loaded, use socket_addrinfo_lookup, otherwise, fall back to dns_get_record.
+    // socket_addrinfo_lookup is preferred as it will honor `hosts` files and system DNS configuration
+
+    if (extension_loaded('sockets')) {
+        $servers = array_merge(...array_map(function ($family) use ($server) {
+            return array_map(function ($addrInfo) {
+                $addrArray = socket_addrinfo_explain($addrInfo);
+                return $addrArray['ai_addr']['sin6_addr'] ?? $addrArray['ai_addr']['sin_addr'];
+            }, socket_addrinfo_lookup($server, null, ['ai_family' => $family, 'ai_socktype' => SOCK_DGRAM]) ?: []);
+        }, [AF_INET6, AF_INET]));
+    } else {
+        $servers = array_map(function ($dnsRecord) {
+            return $dnsRecord['ipv6'] ?? $dnsRecord['ip'];
+        }, dns_get_record($server, DNS_AAAA | DNS_A));
+    }
+
+    // Now, authenticate using the resolved addresses
+    $authenticated = $client->accessRequestList($servers, $username, $password);
+
+### Setting vendor-specific attributes
+
+Vendor IDs are defined in the `\Dapphp\Radius\VendorId` class. For example, `\Dapphp\Radius\VendorId::MIKROTIK`.
+
+    // Set vendor-specific attribute $attributeNumber for $vendorId
 	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $rawValue);
 
-	// Setting a vendor-specific attribute with a non-string data type
+	// Setting a vendor-specific attribute with other data types
 	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $ipv4addr, Radius::DATA_TYPE_IPV4ADDR);
 	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $ipv6addr, Radius::DATA_TYPE_IPV6ADDR);
 	$client->setVendorSpecificAttribute($vendorId, $attributeNumber, $int64, Radius::DATA_TYPE_INTEGER64);
 
-	// Retrieving attributes from RADIUS responses after receiving a failure or success response
+### Retrieving attributes from RADIUS responses
+
+To get attributes from received replies, use the `getAttribute()` method. This method returns the value of the specified
+attribute from the last received RADIUS response.
+
 	$value = $client->getAttribute('Error-Cause');
 	$reply = $client->getAttribute('Reply-Message');
 	$ipv6addr = $client->getAttribute('Framed-IPv6-Address');
@@ -211,21 +281,23 @@ The following types are supported:
 	// Get an array of all received attributes
 	$attributes = getReceivedAttributes();
 
-	// Debugging
-	// Prior to sending a request, call
+### Debugging requests and replies
+
+Before sending a request, call the `setDebug()` method. The client will output debug information showing what attributes
+are set, sent, and received as well as information about the requests and responses.
+
 	$client->setDebug(true); // enable debug output on console
-	// Shows what attributes are sent and received, and info about the request/response
 
 
-## Requirements:
+## Requirements
 
 * PHP 7.3, 8.x
 
-## TODO:
+## TODO
 
 - Vendor specific attribute dictionaries
 
-## Copyright:
+## Copyright
 
     Copyright (c) 2008, SysCo systemes de communication sa
     SysCo (tm) is a trademark of SysCo systemes de communication sa
@@ -249,7 +321,7 @@ The following types are supported:
     License along with Pure PHP radius class.
     If not, see <http://www.gnu.org/licenses/>
 
-## Licenses:
+## Licenses
 
 This library makes use of the Crypt_CHAP PEAR library.  See `lib/Pear_CHAP.php`.
 
