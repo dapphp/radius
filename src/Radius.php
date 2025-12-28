@@ -2236,8 +2236,17 @@ class Radius
      */
     private function sendRadiusRequest($packetData, $port = null)
     {
-        $packetLen  = strlen($packetData);
-        if($port===null) $port=$this->authenticationPort;
+        if (empty($this->server)) {
+            $this->errorCode    = 1;
+            $this->errorMessage = 'Server not set, cannot send RADIUS request';
+            return false;
+        }
+
+        $packetLen = strlen($packetData);
+
+        if (is_null($port)) {
+            $port = $this->authenticationPort;
+        }
 
         if ($this->debug) {
             $this->debugInfo("Connect to {$this->server}:{$port}");
