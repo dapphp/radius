@@ -1799,6 +1799,7 @@ class Radius
             } else {
                 /* timeout or other possible transient error; try next host */
                 $this->attributesToSend = $attributes; // reset base attributes
+                $this->generateRequestAuthenticator(); // generate a new random request authenticator
             }
         }
 
@@ -2220,6 +2221,7 @@ class Radius
             } else {
                 /* timeout or other possible transient error; try next host */
                 $this->attributesToSend = $attributes; // reset base attributes
+                $this->generateRequestAuthenticator(); // generate a new random request authenticator
             }
         }
 
@@ -2568,7 +2570,16 @@ class Radius
         return $this->identifierToSend;
     }
 
-    private function generateRequestAuthenticator()
+    /**
+     * Generate a random request authenticator for the next request.
+     *
+     * This only needs to be called when sending an access request more than once. A random request authenticator is
+     * generated when a new Radius client is created. If multiple requests are sent with the same client object, a new
+     * request authenticator should be generated for each subsequent request.
+     *
+     * @return self
+     */
+    public function generateRequestAuthenticator()
     {
         $this->requestAuthenticator = '';
 
