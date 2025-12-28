@@ -615,7 +615,17 @@ class ClientTest extends TestCase
 
         $success = $client->accessRequestEapMsChapV2($user, $pass);
 
-        $this->assertTrue($success);
+        if (!$success) {
+            $reply = $client->getReceivedAttribute('Reply-Message');
+            $this->fail(sprintf(
+                "Radius access request failed (%d): %s.%s",
+                $client->getErrorCode(),
+                $client->getErrorMessage(),
+                !empty($reply) ? "\nReply-Message: $reply" : ''
+            ));
+        } else {
+            $this->assertTrue($success);
+        }
     }
 
     public function testCoaRequestPacket()
