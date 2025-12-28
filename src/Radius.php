@@ -2569,7 +2569,7 @@ class Radius
     }
 
     /**
-     * Increment the packet identifier and return the number number
+     * Increment the packet identifier and return the number
      *
      * @return int     The radius packet id
      */
