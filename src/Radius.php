@@ -1681,7 +1681,7 @@ class Radius
      * @param string $username  Username to authenticate as
      * @param string $password  Password to authenticate with using PAP
      * @param int    $timeout   The timeout (in seconds) to wait for a response packet
-     * @param string $state     The state of the request (default is Service-Type=1)
+     * @param string $state     The state of the request (default is Service-Type=1 unless already set)
      * @return boolean          true if the server sent an Access-Accept packet, false otherwise
      */
     public function accessRequest($username = '', $password = '', $timeout = 0, $state = null)
@@ -1701,7 +1701,9 @@ class Radius
         if ($state !== null) {
             $this->setAttribute(24, $state);
         } else {
-            $this->setAttribute(6, 1); // 1=Login
+			if ($this->getAttributesToSend(6) === null) {
+				$this->setAttribute(6, 1); // 1=Login
+			}
         }
 
         if (intval($timeout) > 0) {
